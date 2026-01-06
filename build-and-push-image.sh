@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Defaults (override by exporting env vars)
 : "${GHCR_USER:=rummens}"
-: "${REPO_NAME:=pluralsight-openshift-fundamentals-and-workload-deployment}"
+: "${REPO_NAME:=pluralsight-globomantics-website}"
 : "${GHCR_IMAGE:=ghcr.io/${GHCR_USER}/${REPO_NAME}}"
-: "${TAG:=$(git rev-parse --short HEAD 2>/dev/null || echo latest)}"
+: "${TAG:=v2}"
 : "${PLATFORMS:=linux/amd64,linux/arm64}"
 BUILDER_NAME="ghcr-builder"
 
