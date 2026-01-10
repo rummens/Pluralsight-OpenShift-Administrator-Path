@@ -9,7 +9,7 @@ WEB_PAGES_DIR = (BASE_DIR / "globomantics-asset-bundle" / "web-pages").resolve()
 app = Flask(__name__, static_folder=None)
 
 # Set variant via environment variable, e.g. APP_VARIANT=v2
-APP_VARIANT = os.getenv("APP_VARIANT", "v2")
+APP_VARIANT = os.getenv("APP_VARIANT", "v3")
 
 
 def inject_variant_banner(html_text: str, variant: str) -> str:

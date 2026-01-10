@@ -5,7 +5,7 @@ set -euo pipefail
 : "${GHCR_USER:=rummens}"
 : "${REPO_NAME:=pluralsight-globomantics-website}"
 : "${GHCR_IMAGE:=ghcr.io/${GHCR_USER}/${REPO_NAME}}"
-: "${TAG:=v2}"
+: "${TAG:=v3}"
 : "${PLATFORMS:=linux/amd64,linux/arm64}"
 BUILDER_NAME="ghcr-builder"
 
