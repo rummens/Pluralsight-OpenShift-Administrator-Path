@@ -1,12 +1,13 @@
 import os
 import re
 from pathlib import Path
-from flask import Flask, send_from_directory, abort, Response
+from flask import Flask, send_from_directory, abort, Response, request, g
 import time
 from typing import Optional
 import psycopg2
 import logging
 import sys
+import threading
 
 BASE_DIR = Path(__file__).resolve().parent
 WEB_PAGES_DIR = (BASE_DIR / "globomantics-asset-bundle" / "web-pages").resolve()
@@ -14,16 +15,40 @@ WEB_PAGES_DIR = (BASE_DIR / "globomantics-asset-bundle" / "web-pages").resolve()
 app = Flask(__name__, static_folder=None)
 
 # Configure basic logging to stdout so logs appear in container output
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+LOG_LEVEL_NAME = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, logging.INFO)
+REQUEST_LOGGING = os.getenv("REQUEST_LOGGING", "false").lower() in ("1", "true", "yes")
+
+logging.basicConfig(stream=sys.stdout, level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 # Ensure gunicorn and werkzeug use the same handlers (so their logs appear in stdout)
 for logger_name in ("gunicorn.error", "gunicorn.access", "werkzeug"):
     logger = logging.getLogger(logger_name)
     logger.handlers = logging.root.handlers
-    logger.setLevel(logging.INFO)
+    logger.setLevel(LOG_LEVEL)
 
 # Tie Flask's app.logger to the root handlers as well
 app.logger.handlers = logging.root.handlers
-app.logger.setLevel(logging.INFO)
+app.logger.setLevel(LOG_LEVEL)
+
+# If request logging is enabled, add middleware to log each request with timing and status
+if REQUEST_LOGGING:
+    @app.before_request
+    def _log_request_start():
+        g._req_start_time = time.time()
+
+    @app.after_request
+    def _log_request_end(response):
+        try:
+            start = getattr(g, '_req_start_time', None)
+            duration = (time.time() - start) * 1000.0 if start else 0.0
+            remote = request.remote_addr or '-'
+            method = request.method
+            path = request.path
+            status = response.status_code
+            app.logger.info(f"{remote} {method} {path} {status} {duration:.2f}ms")
+        except Exception:
+            app.logger.exception("Failed to log request")
+        return response
 
 # Control debug mode via environment variable; default is False in containers
 FLASK_DEBUG = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
@@ -36,13 +61,13 @@ APP_VARIANT = os.getenv("APP_VARIANT", "v3")
 # Set e.g. DB_REQUIRED=true to make DB required.
 DB_REQUIRED = os.getenv("DB_REQUIRED", "false").lower() in ("1", "true", "yes")
 
-# optional startup delay (seconds). Useful to simulate slow-starting apps.
-STARTUP_DELAY = int(os.getenv("STARTUP_DELAY", "0"))
-
 if DB_REQUIRED:
     app.logger.info("DB_REQUIRED is set to True: missing DB envs or connection failure will abort startup")
 else:
     app.logger.info("DB_REQUIRED is set to False: missing DB envs or connection failure will be logged but startup will continue")
+
+# optional startup delay (seconds). Useful to simulate slow-starting apps.
+STARTUP_DELAY = int(os.getenv("STARTUP_DELAY", "0"))
 
 def init_db_connection() -> Optional[object]:
     """Validate DB envs and attempt a Postgres connection if present.
@@ -123,6 +148,44 @@ def serve_file(filename):
     relative = requested.relative_to(WEB_PAGES_DIR)
     return send_from_directory(str(WEB_PAGES_DIR), str(relative))
 
+
+# Health failure toggle (thread-safe)
+_health_fail = False
+_health_fail_reason = ""
+_health_fail_lock = threading.Lock()
+
+@app.route("/health")
+def health():
+    # Return unhealthy (503) if the failure toggle has been set via /health/fail
+    with _health_fail_lock:
+        if _health_fail:
+            reason = _health_fail_reason or "forced-failure"
+            app.logger.warning(f"/health returning 503 due to forced failure: {reason}")
+            return Response(f"unhealthy: {reason}", status=503, mimetype="text/plain")
+    return Response("ok", status=200, mimetype="text/plain")
+
+
+@app.route("/health/fail", methods=["POST"])
+def health_fail():
+    """Trigger the health endpoint to return an error. Accepts optional ?reason=..."""
+    reason = request.args.get("reason") or request.form.get("reason") or "manual"
+    global _health_fail, _health_fail_reason
+    with _health_fail_lock:
+        _health_fail = True
+        _health_fail_reason = reason
+    app.logger.warning(f"/health/fail invoked: reason={reason}")
+    return Response(f"health failure set: {reason}", status=200, mimetype="text/plain")
+
+
+@app.route("/health/ok", methods=["POST"])
+def health_ok():
+    """Clear the health failure so /health returns ok again."""
+    global _health_fail, _health_fail_reason
+    with _health_fail_lock:
+        _health_fail = False
+        _health_fail_reason = ""
+    app.logger.info("/health/ok invoked: health restored")
+    return Response("health restored", status=200, mimetype="text/plain")
 
 app.logger.info(f"Delaying startup for {STARTUP_DELAY} seconds")
 time.sleep(STARTUP_DELAY)

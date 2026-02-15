@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-responder
+  namespace: safe-rollouts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-responder
+  template:
+    metadata:
+      labels:
+        app: simple-responder
+    spec:
+      containers:
+        - name: globomantics-web
+          image: ghcr.io/rummens/pluralsight-simple-responder:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+
