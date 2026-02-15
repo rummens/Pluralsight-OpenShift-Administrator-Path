@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: globomantics-website
+  namespace: globomantics-wrong-route
+spec:
+  path: /shop
+  to:
+    kind: Service
+    name: globomantics-website
+  port:
+    targetPort: web
