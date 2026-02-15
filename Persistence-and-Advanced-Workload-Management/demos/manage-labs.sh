@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source the base implementation (three levels up)
-source "$SCRIPT_DIR/../../../manage-labs-base.sh"
+source "$SCRIPT_DIR/../../manage-labs-base.sh"
 
 # Forward all CLI args to the function. Users may also set env vars like
 # SCRIPT_DIR, ACTION, ASSUME_YES before calling this wrapper to override defaults.
