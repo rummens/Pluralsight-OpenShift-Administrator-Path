@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-pvc
+  namespace: troubleshooting-pvcs
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-storge   # typo
+  resources:
+    requests:
+      storage: 1Gi

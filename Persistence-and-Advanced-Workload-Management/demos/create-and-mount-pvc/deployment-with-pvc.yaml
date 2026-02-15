@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-persistent
+  namespace: create-and-mount-pvc-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-persistent
+  template:
+    metadata:
+      labels:
+        app: mysql-persistent
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: rootpassword
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc

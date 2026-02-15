@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: cm-and-secret-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: bitnami/postgresql
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: globomantics
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

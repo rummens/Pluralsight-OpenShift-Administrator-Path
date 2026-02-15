@@ -19,7 +19,8 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
-COPY globomantics-webapp ./globomantics-webapp
+COPY globomantics-asset-bundle /app/globomantics-asset-bundle
+COPY app.py /app
 
 # Create a non-root user and give ownership of the app directory
 RUN groupadd -r app && useradd -r -g app -d /app -s /usr/sbin/nologin app && \
@@ -30,4 +31,4 @@ USER app
 EXPOSE 8080
 
 # Run the Flask app via gunicorn (module: object)
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "globomantics-webapp.app:app", "--workers", "2", "--threads", "4", "--worker-class", "gthread"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app", "--workers", "2", "--threads", "4", "--worker-class", "gthread"]

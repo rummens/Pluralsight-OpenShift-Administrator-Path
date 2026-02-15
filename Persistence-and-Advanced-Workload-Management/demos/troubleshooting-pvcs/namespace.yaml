@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: troubleshooting-pvcs
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-b
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: broken-secret

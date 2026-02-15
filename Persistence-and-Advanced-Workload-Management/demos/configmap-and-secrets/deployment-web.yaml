@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globomantics-website
+  namespace: cm-and-secret-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globomantics-website
+  template:
+    metadata:
+      labels:
+        app: globomantics-website
+    spec:
+      containers:
+        - name: globomantics-web
+          image: ghcr.io/rummens/pluralsight-globomantics-website-with-db:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+
+          env:
+            # Required flags
+            - name: DB_REQUIRED
+              value: "true"
+            - name: FLASK_DEBUG
+              value: "true"
+
+            # From ConfigMap (non-sensitive)
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: DB_HOST
+
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: DB_PORT
+
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: DB_NAME
+
+            # From Secret (sensitive)
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: DB_USER
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: DB_PASSWORD

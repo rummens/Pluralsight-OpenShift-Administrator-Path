@@ -1,0 +1,56 @@
+# Controller configuration
+controller:
+  # Run on control plane nodes (required for OpenShift)
+  runOnControlPlane: true
+
+  # High availability with 2 replicas (use 1 for Single Node OpenShift)
+  replicas: 1
+
+  # Rolling update strategy for zero-downtime updates
+  strategyType: RollingUpdate
+
+  # Resource limits for the controller
+  resources:
+    limits:
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 20Mi
+
+# Node DaemonSet configuration
+node:
+  # Resource limits for node pods
+  resources:
+    limits:
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 20Mi
+
+# External Snapshotter configuration
+externalSnapshotter:
+  # Enable snapshot support
+  enabled: true
+
+  # Don't install CRDs (OpenShift already has them)
+  customResourceDefinitions:
+    enabled: false
+
+# Image configuration (optional - uncomment if using custom registry)
+# image:
+#   baseRepo: registry.k8s.io/sig-storage
+#   nfs:
+#     repository: registry.k8s.io/sig-storage/nfsplugin
+#     tag: v4.11.0
+#     pullPolicy: IfNotPresent
+
+# Feature gates (optional)
+feature:
+  enableFSGroupPolicy: true
+  enableInlineVolume: false
+
+# Custom driver name (optional - leave default)
+# driver:
+#   name: nfs.csi.k8s.io
+
+# kubeletDir: /var/lib/kubelet

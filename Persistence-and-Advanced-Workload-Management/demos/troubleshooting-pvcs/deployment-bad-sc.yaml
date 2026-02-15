@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pvc-troubleshoot-demo
+  namespace: troubleshooting-pvcs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pvc-troubleshoot-demo
+  template:
+    metadata:
+      labels:
+        app: pvc-troubleshoot-demo
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: storage
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: bad-sc-pvc

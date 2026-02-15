@@ -1,0 +1,21 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+  namespace: csi-driver-nfs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"  # Set to "true" for default
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 10.10.200.71                        # IP of NFS server
+  share: /mnt/Fast_Pool/NFS-CSI                # Your NFS export path
+  # Dynamic subdirectory naming using PVC metadata
+  subDir: ${pvc.metadata.namespace}-${pvc.metadata.name}-${pv.metadata.name}
+reclaimPolicy: Delete  # or Retain to keep data after PVC deletion
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.1  # Use NFSv4.1
+  - hard
+  - noatime
