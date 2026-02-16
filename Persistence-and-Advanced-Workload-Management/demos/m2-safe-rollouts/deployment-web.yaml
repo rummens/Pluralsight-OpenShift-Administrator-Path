@@ -5,6 +5,13 @@ metadata:
   namespace: safe-rollouts
 spec:
   replicas: 1
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app: simple-responder
@@ -13,10 +20,30 @@ spec:
       labels:
         app: simple-responder
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
-        - name: globomantics-web
-          image: ghcr.io/rummens/pluralsight-simple-responder:v1
+        - name: simple-responder
+          image: ghcr.io/rummens/simple-responder:v1
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
-
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            failureThreshold: 3

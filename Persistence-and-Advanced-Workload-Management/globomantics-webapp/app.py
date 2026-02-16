@@ -1,7 +1,8 @@
+import math
 import os
 import re
 from pathlib import Path
-from flask import Flask, send_from_directory, abort, Response, request, g
+from flask import Flask, send_from_directory, abort, Response, request, g, jsonify
 import time
 from typing import Optional
 import psycopg2
@@ -186,6 +187,49 @@ def health_ok():
         _health_fail_reason = ""
     app.logger.info("/health/ok invoked: health restored")
     return Response("health restored", status=200, mimetype="text/plain")
+
+
+def is_prime(n: int) -> bool:
+    """Very inefficient prime check (on purpose)."""
+    if n < 2:
+        return False
+    for i in range(2, int(math.sqrt(n)) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+
+def count_primes(limit: int) -> int:
+    """Count prime numbers up to 'limit' (CPU intensive)."""
+    count = 0
+    for number in range(2, limit):
+        if is_prime(number):
+            count += 1
+    return count
+
+
+@app.route("/heavy")
+def heavy():
+    """
+    Example:
+    /heavy?limit=50000
+
+    Increase limit for more CPU usage.
+    """
+    try:
+        limit = int(request.args.get("limit", 90000))
+    except ValueError:
+        return jsonify({"error": "Invalid limit parameter"}), 400
+
+    start = time.time()
+    result = count_primes(limit)
+    duration = time.time() - start
+
+    return jsonify({
+        "limit": limit,
+        "prime_count": result,
+        "duration_seconds": duration
+    })
 
 app.logger.info(f"Delaying startup for {STARTUP_DELAY} seconds")
 time.sleep(STARTUP_DELAY)

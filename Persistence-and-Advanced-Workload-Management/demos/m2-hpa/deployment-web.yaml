@@ -20,6 +20,14 @@ spec:
           ports:
             - containerPort: 8080
 
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "50Mi"
+            limits:
+              cpu: "200m"
+              memory: "100Mi"
+
           env:
             # Required flags
             - name: DB_REQUIRED
