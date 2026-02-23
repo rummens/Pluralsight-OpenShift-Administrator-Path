@@ -87,6 +87,8 @@ def init_db_connection() -> Optional[object]:
             raise SystemExit(msg)
         app.logger.info(msg + "; continuing because DB_REQUIRED is not set")
         return None
+    else:
+        app.logger.info("All DB environment variables are set: " + ", ".join(f"{k}=***" for k in db_keys))
 
     # Attempt to connect with a short timeout
     try:

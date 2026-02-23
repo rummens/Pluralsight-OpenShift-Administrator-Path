@@ -20,12 +20,18 @@ Apply or remove all Kubernetes manifests found in immediate subfolders (one leve
 Options:
   -a, --apply       Apply manifests (default)
   -r, --remove      Remove (delete) manifests
+  -s, --subdir NAME Limit operation to a single immediate subfolder (pass the folder name)
   -y, --yes         Assume yes for destructive actions (skip confirmation for remove)
   -h, --help        Show this help message
 
 Examples:
   $(basename "$0") --apply    # apply all manifests in subfolders
   $(basename "$0") --remove -y # delete all manifests without confirmation
+  $(basename "$0") --apply --subdir demo    # only process the 'demo' subfolder
+
+Note: --subdir expects the immediate subfolder name (basename). You may pass a path
+but the script will compare basenames so either the folder name or a path ending with
+that folder will work.
 EOF
 }
 
@@ -34,6 +40,7 @@ manage_labs() {
   local SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
   local ACTION="${ACTION:-apply}"
   local ASSUME_YES="${ASSUME_YES:-false}"
+  local TARGET_SUBDIR="${TARGET_SUBDIR:-}"
 
   # Parse any arguments passed to the function (optional when calling)
   while [[ ${#} -gt 0 ]]; do
@@ -44,6 +51,16 @@ manage_labs() {
         ;;
       -r|--remove)
         ACTION=delete
+        shift
+        ;;
+      -s|--subdir)
+        shift
+        if [ -z "${1-}" ]; then
+          echo "Error: --subdir requires a folder name" >&2
+          usage
+          return 2
+        fi
+        TARGET_SUBDIR="$1"
         shift
         ;;
       -y|--yes)
@@ -78,6 +95,10 @@ manage_labs() {
     esac
   fi
 
+  if [ -n "$TARGET_SUBDIR" ]; then
+    echo "Limiting operation to subfolder basename: $(basename "$TARGET_SUBDIR")"
+  fi
+
   echo "Running 'oc $ACTION' on manifests found in immediate subfolders of: $SCRIPT_DIR"
 
   local FOUND_ANY=false
@@ -86,6 +107,17 @@ manage_labs() {
   local dir
   for dir in "$SCRIPT_DIR"/*/; do
     [ -d "$dir" ] || continue
+
+    # If TARGET_SUBDIR is set, skip folders that don't match the requested basename
+    if [ -n "$TARGET_SUBDIR" ]; then
+      local target_basename
+      target_basename=$(basename "$TARGET_SUBDIR")
+      local human_dir
+      human_dir=$(basename "$dir")
+      if [ "$human_dir" != "$target_basename" ]; then
+        continue
+      fi
+    fi
 
     # Collect files one level deep inside this subdir (not recursive)
     local files=()
@@ -128,7 +160,6 @@ manage_labs() {
     # noop here
 
     # Human-friendly names
-    local human_dir
     human_dir=$(basename "$dir")
 
     # If applying and a namespace file exists, apply it first and wait until namespace is visible
@@ -144,7 +175,7 @@ manage_labs() {
         fi
         if [ -n "$ns_name" ]; then
           # Clean up namespace name: trim whitespace and surrounding quotes
-          ns_name=$(printf '%s' "$ns_name" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+          ns_name=$(printf '%s' "$ns_name" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' )
           echo "Waiting for namespace '$ns_name' to be created..."
           # Poll for namespace existence (timeout after ~30s)
           for _ in 1 2 3 4 5 6; do

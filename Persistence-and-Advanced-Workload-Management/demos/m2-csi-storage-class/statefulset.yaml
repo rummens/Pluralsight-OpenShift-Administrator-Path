@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-stateful
+  namespace: storageclass-csi
+spec:
+  serviceName: postgres-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: postgres-stateful
+  template:
+    metadata:
+      labels:
+        app: postgres-stateful
+    spec:
+      containers:
+        - name: postgres
+          image: bitnami/postgresql
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: demo
+            - name: POSTGRES_USER
+              value: demo
+            - name: POSTGRES_PASSWORD
+              value: demo123
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-storage
+        resources:
+          requests:
+            storage: 1Gi
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
+    whenScaled: Delete
