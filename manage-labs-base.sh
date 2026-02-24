@@ -40,7 +40,11 @@ manage_labs() {
   local SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
   local ACTION="${ACTION:-apply}"
   local ASSUME_YES="${ASSUME_YES:-false}"
+  # TARGET_SUBDIR may be either a concrete folder name or a glob pattern (e.g. 'm3-*').
+  # Callers that predefine TARGET_SUBDIR (single name or path) still work — we'll
+  # use the basename and treat it as a pattern during matching below.
   local TARGET_SUBDIR="${TARGET_SUBDIR:-}"
+  local TARGET_SUBDIR_PATTERN=""
 
   # Parse any arguments passed to the function (optional when calling)
   while [[ ${#} -gt 0 ]]; do
@@ -56,11 +60,14 @@ manage_labs() {
       -s|--subdir)
         shift
         if [ -z "${1-}" ]; then
-          echo "Error: --subdir requires a folder name" >&2
+          echo "Error: --subdir requires a folder name or pattern" >&2
           usage
           return 2
         fi
+        # Store the given value; we'll use its basename as a pattern matcher.
         TARGET_SUBDIR="$1"
+        # Extract basename so callers may pass either 'name' or a path ending with the name/pattern
+        TARGET_SUBDIR_PATTERN=$(basename "$1")
         shift
         ;;
       -y|--yes)
@@ -95,8 +102,8 @@ manage_labs() {
     esac
   fi
 
-  if [ -n "$TARGET_SUBDIR" ]; then
-    echo "Limiting operation to subfolder basename: $(basename "$TARGET_SUBDIR")"
+  if [ -n "$TARGET_SUBDIR_PATTERN" ]; then
+    echo "Limiting operation to subfolder pattern: ${TARGET_SUBDIR_PATTERN}"
   fi
 
   echo "Running 'oc $ACTION' on manifests found in immediate subfolders of: $SCRIPT_DIR"
@@ -108,15 +115,17 @@ manage_labs() {
   for dir in "$SCRIPT_DIR"/*/; do
     [ -d "$dir" ] || continue
 
-    # If TARGET_SUBDIR is set, skip folders that don't match the requested basename
-    if [ -n "$TARGET_SUBDIR" ]; then
-      local target_basename
-      target_basename=$(basename "$TARGET_SUBDIR")
+    # If TARGET_SUBDIR_PATTERN is set, match the immediate subfolder basename against it.
+    if [ -n "$TARGET_SUBDIR_PATTERN" ]; then
       local human_dir
       human_dir=$(basename "$dir")
-      if [ "$human_dir" != "$target_basename" ]; then
-        continue
-      fi
+      case "$human_dir" in
+        $TARGET_SUBDIR_PATTERN)
+          ;; # match
+        *)
+          continue
+          ;;
+      esac
     fi
 
     # Collect files one level deep inside this subdir (not recursive)
