@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldap-sync-config
+  namespace: ldap-sync
+data:
+  ldap-sync.yaml: |
+    kind: LDAPSyncConfig
+    apiVersion: v1
+    url: ldap://<ldap-host>:389
+    bindDN: "cn=admin,dc=example,dc=org"
+    bindPassword: "adminpw"
+    insecure: true
+    rfc2307:
+      groupsQuery:
+        baseDN: "ou=groups,dc=example,dc=org"
+        scope: sub
+        derefAliases: never
+        filter: "(objectClass=groupOfUniqueNames)"
+      groupUIDAttribute: "dn"
+      groupNameAttributes: ["cn"]
+    
+      usersQuery:
+        baseDN: "ou=people,dc=example,dc=org"
+        scope: sub
+        derefAliases: never
+      userUIDAttribute: "dn"
+      userNameAttributes: ["uid"]
+    
+      groupMembershipAttributes: ["uniqueMember"]

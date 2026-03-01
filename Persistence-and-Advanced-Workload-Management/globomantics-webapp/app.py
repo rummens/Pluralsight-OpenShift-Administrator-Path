@@ -88,7 +88,9 @@ def init_db_connection() -> Optional[object]:
         app.logger.info(msg + "; continuing because DB_REQUIRED is not set")
         return None
     else:
-        app.logger.info("All DB environment variables are set: " + ", ".join(f"{k}=***" for k in db_keys))
+        # print all keys and values (except password) for verification
+        app.logger.info("DB environment variables successfully set")
+        app.logger.info("DB connection details: " + "\n ".join(f"{k}={'***' if k=='DB_PASSWORD' else v}" for k, v in db_envs.items()))
 
     # Attempt to connect with a short timeout
     try:

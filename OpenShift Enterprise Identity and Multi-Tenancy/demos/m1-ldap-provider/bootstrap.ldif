@@ -1,0 +1,66 @@
+dn: ou=people,dc=example,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=developers,ou=groups,dc=example,dc=org
+objectClass: groupOfUniqueNames
+cn: developers
+uniqueMember: uid=alice,ou=people,dc=example,dc=org
+uniqueMember: uid=bob,ou=people,dc=example,dc=org
+uniqueMember: uid=developer,ou=people,dc=example,dc=org
+
+dn: cn=admins,ou=groups,dc=example,dc=org
+objectClass: groupOfUniqueNames
+cn: admins
+uniqueMember: uid=bob,ou=people,dc=example,dc=org
+uniqueMember: uid=admin,ou=people,dc=example,dc=org
+
+dn: cn=testers,ou=groups,dc=example,dc=org
+objectClass: groupOfUniqueNames
+cn: testers
+uniqueMember: uid=tester,ou=people,dc=example,dc=org
+uniqueMember: uid=alice,ou=people,dc=example,dc=org
+
+dn: uid=alice,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: alice
+cn: Alice Example
+sn: Example
+mail: alice@example.org
+userPassword: alicepw
+
+dn: uid=bob,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: bob
+cn: Bob Example
+sn: Example
+mail: bob@example.org
+userPassword: bobpw
+
+dn: uid=developer,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: developer
+cn: Developer
+sn: Demo
+mail: developer@example.org
+userPassword: developer123
+
+dn: uid=admin,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: admin
+cn: Admin
+sn: Demo
+mail: admin@example.org
+userPassword: admin123
+
+dn: uid=tester,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: tester
+cn: Tester
+sn: Demo
+mail: tester@example.org
+userPassword: tester123
