@@ -1,0 +1,7 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: team-a-dev-quota
+
+spec:
+  displayName: "Team A Dev - Quota and Limit Demo"

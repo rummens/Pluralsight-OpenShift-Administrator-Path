@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-demo-bad
+  namespace: team-a-dev-quota
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: quota-demo-bad
+  template:
+    metadata:
+      labels:
+        app: quota-demo-bad
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+          resources:
+            requests:
+              cpu: "1"
+              memory: 128Mi

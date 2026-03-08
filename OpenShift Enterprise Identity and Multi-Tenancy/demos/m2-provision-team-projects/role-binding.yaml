@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: middleware-developers-admin
+  namespace: middleware-dev
+subjects:
+  - kind: Group
+    name: middleware-developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ava-self-provisioner
+subjects:
+  - kind: User
+    name: ava
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: self-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Grant user 'ava' permission to patch namespace objects (labels)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: namespace-label-patcher
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ava-namespace-label-patcher
+subjects:
+  - kind: User
+    name: ava
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: namespace-label-patcher
+  apiGroup: rbac.authorization.k8s.io

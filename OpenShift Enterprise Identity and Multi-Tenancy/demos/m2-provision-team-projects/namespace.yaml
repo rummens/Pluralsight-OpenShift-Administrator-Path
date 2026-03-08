@@ -1,0 +1,9 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: middleware-dev
+  labels:
+    team: middleware
+    environment: dev
+spec:
+  displayName: "Middleware - Dev"

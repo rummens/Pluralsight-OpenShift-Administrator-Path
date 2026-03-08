@@ -1,0 +1,14 @@
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: frontend-developers
+users:
+  - ava
+  - ben
+---
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: middleware-developers
+users:
+  - mia
