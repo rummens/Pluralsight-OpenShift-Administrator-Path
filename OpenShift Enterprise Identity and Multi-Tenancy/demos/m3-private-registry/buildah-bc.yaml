@@ -1,0 +1,20 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: buildah-build
+  namespace: private-registry-demo
+spec:
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM ghcr.io/rummens/pluralsight-globomantics-private-registry:v3
+      CMD echo "this is a sample build"
+  strategy:
+    type: Docker
+    dockerStrategy:
+      pullSecret:
+        name: ghcr-secret
+  output:
+    to:
+      kind: ImageStreamTag
+      name: result:latest

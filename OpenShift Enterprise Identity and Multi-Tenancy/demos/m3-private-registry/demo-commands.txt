@@ -1,0 +1,36 @@
+oc get pods -n private-registry-demo
+oc describe pod -l app=test-app -n private-registry-demo
+
+# 2. Create secret
+oc create secret docker-registry ghcr-secret --docker-server=ghcr.io --docker-username=$GHCR_USER --docker-password=$GHCR_TOKEN -n private-registry-demo
+oc describe secret ghcr-secret -n private-registry-demo
+
+# 3. Direct attach
+oc patch deployment test-app -n private-registry-demo --type='merge' -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-secret"}]}}}}'
+oc get deployment test-app -n private-registry-demo -o yaml | grep imagePullSecrets -A 2 -B 8
+
+# wait for rollout
+watch oc get pods -n private-registry-demo #confirm
+oc describe pod -l app=test-app -n private-registry-demo
+
+# 4. Remove direct, add SA
+oc patch deployment test-app -n private-registry-demo --type='merge' -p '{"spec":{"template":{"spec":{"imagePullSecrets":[]}}}}'
+oc get deployment test-app -n private-registry-demo -o yaml | grep imagePullSecrets -A 2 -B 8
+watch oc get pods -n private-registry-demo #confirm
+
+# add to default SA
+oc secrets link default ghcr-secret --for=pull -n private-registry-demo
+oc scale deployment test-app --replicas=2 -n private-registry-demo
+watch oc get pods -n private-registry-demo #confirm
+
+# 5. Builder for builds (independent for base image pulls in build context)
+cat buildah-bc.yaml #wait 10
+clear
+oc apply -f buildah-bc.yaml -n private-registry-demo
+oc start-build bc/buildah-build -n private-registry-demo -F # confirm
+
+# show global pull secret
+oc get secret pull-secret -n openshift-config --template='{{index .data ".dockerconfigjson" | base64decode}}' | jq '{auths: (.auths | to_entries | map({(.key): {auth: "**REDACTED**"}}) | add)}'
+
+# show offline sync
+cat idms.yaml

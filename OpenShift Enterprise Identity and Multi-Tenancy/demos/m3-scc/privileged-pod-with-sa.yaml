@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privileged-demo-with-sa
+  namespace: scc-demo
+  labels:
+    app: privileged-demo-with-sa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: privileged-demo-with-sa
+  template:
+    metadata:
+      labels:
+        app: privileged-demo-with-sa
+    spec:
+      serviceAccountName: privileged-app
+      containers:
+      - name: pause
+        image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+        command: ["bash","-lc","sleep 3600"]
+        securityContext:
+          privileged: true

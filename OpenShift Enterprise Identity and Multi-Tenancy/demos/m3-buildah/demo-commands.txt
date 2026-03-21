@@ -1,0 +1,22 @@
+oc apply -f buildah-naive.yaml
+oc get replicaset
+oc get events -n buildah-demo --field-selector involvedObject.kind=ReplicaSet --sort-by=.lastTimestamp | tail -n 50
+
+# Show privileged dangers
+oc describe scc privileged
+
+# apply pod
+oc apply -f buildah-pod.yaml
+oc get pod buildah-custom
+oc get pod buildah-custom -o yaml | grep -i scc -A 2
+oc describe scc buildah
+
+# Build
+oc exec -it buildah-custom -- /bin/bash
+cd /tmp
+cat > Containerfile <<CF #wait 0
+FROM registry.access.redhat.com/ubi9/ubi-minimal #wait 0
+RUN echo 'custom SCC build success' #wait 0
+CF #wait 0
+buildah bud -t secure-app:latest . #wait 15
+buildah images

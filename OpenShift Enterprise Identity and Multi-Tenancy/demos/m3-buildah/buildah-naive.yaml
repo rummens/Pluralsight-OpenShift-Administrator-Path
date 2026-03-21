@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildah-naive
+  namespace: buildah-demo
+  labels:
+    app: buildah-naive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buildah-naive
+  template:
+    metadata:
+      labels:
+        app: buildah-naive
+    spec:
+      containers:
+      - name: buildah
+        image: quay.io/buildah/stable:latest
+        securityContext:
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /var/lib/containers
+          name: storage
+        command: ["/bin/bash"]
+        args: ["-c", "while true; do sleep 30; done"]
+      volumes:
+      - name: storage
+        emptyDir: {}

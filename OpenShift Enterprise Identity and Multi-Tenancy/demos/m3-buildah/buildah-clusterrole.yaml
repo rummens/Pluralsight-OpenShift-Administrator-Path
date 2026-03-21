@@ -1,0 +1,10 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: buildah-clusterrole
+rules:
+- apiGroups: ["security.openshift.io"]
+  resourceNames: ["buildah"]
+  resources: ["securitycontextconstraints"]
+  verbs: ["use"]
+

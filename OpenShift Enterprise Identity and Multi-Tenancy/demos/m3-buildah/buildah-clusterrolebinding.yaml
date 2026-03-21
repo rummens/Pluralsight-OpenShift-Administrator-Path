@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding          # was RoleBinding
+metadata:
+  name: buildah-rolebinding
+  # no namespace field - cluster-scoped
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: buildah-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: buildah-custom-sa
+  namespace: buildah-demo
