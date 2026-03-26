@@ -1,0 +1,35 @@
+# 1. A self-signed issuer (just to sign the root CA cert)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# 2. The root CA certificate, signed by the selfsigned-issuer
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: demo-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: demo-root-ca
+  secretName: demo-root-ca-secret
+  duration: 87600h  # 10 years, it's a demo
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# 3. The real ClusterIssuer backed by your root CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: demo-ca-issuer
+spec:
+  ca:
+    secretName: demo-root-ca-secret

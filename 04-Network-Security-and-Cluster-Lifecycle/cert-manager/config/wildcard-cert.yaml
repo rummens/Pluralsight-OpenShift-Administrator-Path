@@ -1,0 +1,13 @@
+# Wildcard for *.apps.<domain>
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ingress-wildcard
+  namespace: openshift-ingress
+spec:
+  secretName: custom-certs-managed
+  dnsNames:
+    - "*.apps.test.ocp.globomantics.com"
+  issuerRef:
+    name: demo-ca-issuer
+    kind: ClusterIssuer
