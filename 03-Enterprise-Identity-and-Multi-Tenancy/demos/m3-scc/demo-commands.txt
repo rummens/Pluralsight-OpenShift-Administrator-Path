@@ -24,7 +24,7 @@ oc adm policy add-scc-to-user privileged -z privileged-app -n scc-demo
 oc auth can-i use scc/privileged --as="system:serviceaccount:scc-demo:privileged-app"
 
 # Show the RBAC object that was created (RoleBinding vs ClusterRoleBinding varies by release/usage)
-oc describe rolebinding system:openshift:scc:privileged
+oc get clusterrole system:openshift:scc:privileged -o yaml
 
 # Redeploy pod with explicit serviceAccountName
 oc apply -f privileged-pod-with-sa.yaml

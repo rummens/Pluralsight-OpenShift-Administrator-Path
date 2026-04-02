@@ -1,0 +1,9 @@
+# Remove labels added during the demo
+oc label namespace myapp ingress-sharding-
+oc label node api.test.ocp.globomantics.com k8s.ovn.org/egress-assignable-
+oc label namespace myapp egressip-
+
+# Delete operator resources created during the demo
+oc delete ingresscontroller.operator.openshift.io sharded-ingress -n openshift-ingress-operator
+oc delete egressips.k8s.ovn.org myapp-egressip
+oc delete route myapp-route -n myapp

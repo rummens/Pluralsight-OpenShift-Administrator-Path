@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ip-echo
+  namespace: echo-server
+  labels:
+    app: ip-echo
+spec:
+  containers:
+  - name: ip-echo
+    image: mendhak/http-https-echo
+    ports:
+    - containerPort: 8080
+  restartPolicy: Never
+

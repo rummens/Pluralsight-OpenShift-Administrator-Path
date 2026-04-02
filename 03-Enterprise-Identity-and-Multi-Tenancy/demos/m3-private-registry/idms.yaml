@@ -7,3 +7,7 @@ spec:
   - mirrors:
     - registry.globomantics.com/redhat
     source: registry.redhat.io
+  - mirrors:
+    - registry.globomantics.com/quay
+    source: quay.io
+

@@ -1,0 +1,51 @@
+# ── Phase 1: Custom IngressController (ingress sharding) ──────────────────────
+
+cat sharded-ingress-controller.yaml
+
+# apply
+
+oc apply -f sharded-ingress-controller.yaml
+
+oc get ingresscontroller -n openshift-ingress-operator
+
+watch oc get pods -n openshift-ingress # confirm
+
+oc label namespace myapp ingress-sharding=active
+
+# Create a route and confirm the ingress-class annotation
+oc -n myapp create route edge myapp-route --service=myapp-svc --hostname=myapp.apps.test.ocp.globomantics.com
+
+oc -n myapp get route myapp-route -o yaml
+
+# ── Phase 2: EgressIP ─────────────────────────────────────────────────────────
+
+oc get nodes
+
+oc label node api.test.ocp.globomantics.com k8s.ovn.org/egress-assignable=""
+
+oc get node api.test.ocp.globomantics.com --show-labels | grep egress
+
+# show node ip
+oc get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
+
+# Apply egrees
+
+cat egressip.yaml
+
+# apply
+
+oc apply -f egressip.yaml
+
+# ── Deliberate failure: namespace not yet labeled — shows node IP (using existing `curl-test` pod in `tools`)
+oc -n myapp exec curl-test -- curl -sk https://ip-echo:8443
+
+# ── Fix: apply the matching label ─────────────────────────────────────────────
+oc label namespace myapp egressip=enabled
+
+# Re-run the test using the helper pod in `tools` (no need to create a new pod)
+oc -n myapp exec curl-test -- curl -sk https://ip-echo:8443
+
+# ── Final verification: resource + node assignment + namespace labels ──────────
+
+oc get egressip
+oc get namespace myapp -o yaml

@@ -1,0 +1,11 @@
+apiVersion: k8s.ovn.org/v1
+kind: EgressIP
+metadata:
+  name: myapp-egressip
+spec:
+  egressIPs:
+    - 10.10.200.199
+  namespaceSelector:
+    matchLabels:
+      egressip: enabled
+
