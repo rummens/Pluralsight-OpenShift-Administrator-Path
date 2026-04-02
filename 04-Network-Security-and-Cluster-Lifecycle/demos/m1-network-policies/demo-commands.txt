@@ -1,0 +1,59 @@
+# ENVIRONMENT OVERVIEW
+oc get namespace frontend backend tools #wait 15
+oc get pods -n frontend && oc get pods -n backend && oc get pods -n tools
+
+# Step 1
+oc get svc -n backend
+
+BACKEND_IP=$(oc get svc backend-app -n backend -o jsonpath='{.spec.clusterIP}')
+
+oc exec -n frontend deploy/frontend-app -- curl -s http://$BACKEND_IP
+
+# DENY-ALL
+cat deny-all-ingress.yaml
+
+# apply
+oc apply -f deny-all-ingress.yaml
+
+oc get networkpolicy -n backend
+
+oc exec -n frontend deploy/frontend-app -- curl --max-time 5 http://$BACKEND_IP #wait 8
+
+# INSPECT ALLOW RULE BEFORE APPLYING
+cat allow-frontend-to-backend.yaml
+
+oc apply -f allow-frontend-to-backend.yaml
+
+# Curl before namespace label — still blocked (namespaceSelector resolves nothing)
+oc exec -n frontend deploy/frontend-app -- curl --max-time 5 http://$BACKEND_IP #wait 8
+
+oc label namespace frontend env=frontend
+oc describe namespace frontend
+
+oc exec -n frontend deploy/frontend-app -- curl -s http://$BACKEND_IP
+
+# Confirm tools pod still blocked (no matching labels, wrong namespace)
+oc exec -n tools curl-test -- curl --max-time 5 http://$BACKEND_IP #wait 8
+
+# Port granularity — port 8080 still blocked by deny-all
+oc exec -n frontend deploy/frontend-app -- curl --max-time 5 http://$BACKEND_IP:8080 #wait 8
+
+# MONITORING — show no data via Thanos Querier, then fix
+TOKEN=$(oc whoami -t)
+THANOS=$(oc get route thanos-querier -n openshift-monitoring -ojsonpath='{.spec.host}')
+
+curl -sk -H "Authorization: Bearer $TOKEN" -G "https://$THANOS/api/v1/query"  --data-urlencode 'query=last_over_time(up{namespace="backend"}[1m])' | jq '.data.result'
+
+# Fix
+oc get namespace openshift-monitoring --show-labels
+
+cat allow-monitoring.yaml
+
+# apply
+oc apply -f allow-monitoring.yaml #wait 30
+
+curl -sk -H "Authorization: Bearer $TOKEN" -G "https://$THANOS/api/v1/query"  --data-urlencode 'query=last_over_time(up{namespace="backend"}[1m])' | jq '.data.result'
+
+
+# FINAL POLICY INVENTORY
+oc get networkpolicy -n backend
