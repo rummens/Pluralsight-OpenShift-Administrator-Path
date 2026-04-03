@@ -1,0 +1,65 @@
+# ── Patch IngressController to use the new certificate ───────────────────────
+
+curl -v --insecure https://api.test.ocp.globomantics.com:6443 2>&1 | grep -A5 "subject\|issuer"
+
+oc -n openshift-ingress-operator patch ingresscontroller default \
+  --type=merge \
+  -p '{"spec":{"defaultCertificate":{"name":"globomantics-ingress-cert"}}}'
+
+# check console cert after change
+openssl s_client -connect console-openshift-console.apps.test.ocp.globomantics.com:443 -servername console-openshift-console.apps.test.ocp.globomantics.com # confirm
+curl -vI https://console-openshift-console.apps.test.ocp.globomantics.com 2>&1 | grep -E "subject|issuer|start date|expire date|SSL certificate verify"
+
+curl -vI https://api.apps.test.ocp.globomantics.com:6443 2>&1 | grep -E "subject|issuer|start date|expire date|SSL certificate verify"
+
+
+# ── Patch API server to use the new certificate ───────────────────────
+
+cat api-wildcard-cert.yaml
+
+oc apply -f api-wildcard-cert.yaml
+
+# Confirm secret is ready
+oc -n openshift-config get certificate api-wildcard
+oc -n openshift-config get secret globomantics-api-cert #confirm
+
+# Patch the APIServer cluster resource
+oc patch apiserver cluster \
+  --type=merge \
+  -p '{
+    "spec": {
+      "servingCerts": {
+        "namedCertificates": [
+          {
+            "names": ["api.test.ocp.globomantics.com"],
+            "servingCertificate": {
+              "name": "globomantics-api-cert"
+            }
+          }
+        ]
+      }
+    }
+  }'
+
+# Watch kube-apiserver operator rollout (takes several minutes; pre-stage before recording)
+oc get clusteroperator kube-apiserver -w
+
+# check ssl after API cert update
+openssl s_client -connect api.test.ocp.globomantics.com:6443 -servername api.test.ocp.globomantics.com # confirm
+
+# validate login
+oc login https://api.test.ocp.globomantics.com:6443 -u admin -p admin123
+
+# ── Make OpenShift trust the cert bundle ───────────────────────
+
+# Fetch and verify secret
+oc get secret demo-root-ca-secret -n cert-manager -o jsonpath='{.data.tls\.crt}' | base64 -d > demo-root-ca.crt
+
+openssl x509 -in demo-root-ca.crt -text -noout | grep -A1 "Basic Constraints"
+
+# Create the ConfigMap and Patch the Proxy
+oc create configmap custom-ca --from-file=ca-bundle.crt=demo-root-ca.crt -n openshift-config
+
+oc patch proxy/cluster --type=merge --patch='{"spec":{"trustedCA":{"name":"custom-ca"}}}'
+
+watch oc get co authentication #confirm

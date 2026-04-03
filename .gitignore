@@ -201,6 +201,12 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Certificates
+*.pem
+*.crt
+*.key
+*.cer
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

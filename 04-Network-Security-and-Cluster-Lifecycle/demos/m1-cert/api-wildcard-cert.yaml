@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-wildcard
+  namespace: openshift-config
+spec:
+  secretName: globomantics-api-cert
+  dnsNames:
+    - "api.test.ocp.globomantics.com"
+  issuerRef:
+    name: demo-ca-issuer
+    kind: ClusterIssuer
+  privateKey:
+    rotationPolicy: Always

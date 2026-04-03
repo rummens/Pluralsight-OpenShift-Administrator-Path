@@ -123,6 +123,17 @@ Or via the GUI: double-click `demo-root-ca.crt` → **Install Certificate** →
 > Import `demo-root-ca.crt` manually via
 > *Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import*.
 
+## Step 5 - Trust in kubeconfig (potentially optional)
+If you use `oc` or `kubectl` to interact with the cluster, you may also want
+to update your kubeconfig to trust the new CA for API server communication. You can
+do this by adding the CA certificate to your kubeconfig file:
+
+```bash
+oc config set-cluster <cluster-name> \
+  --certificate-authority=/path/to/your-ca.crt \
+  --embed-certs=true
+```
+
 ---
 
 ## Verify
