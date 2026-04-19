@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-app
+  namespace: upgrade-readiness-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: legacy-app
+  template:
+    metadata:
+      labels:
+        app: legacy-app
+    spec:
+      containers:
+      - name: legacy-app
+        image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+        ports:
+        - containerPort: 8080
+

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "globomantics-website.fullname" . }}
+  labels:
+    {{- include "globomantics-website.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "globomantics-website.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "globomantics-website.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ include "globomantics-website.name" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: {{ include "globomantics-website.fullname" . }}-config
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+

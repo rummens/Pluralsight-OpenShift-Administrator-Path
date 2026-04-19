@@ -1,0 +1,21 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-globo
+  namespace: globomantics-db
+spec:
+  instances: 3
+  storage:
+    size: 5Gi
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://globomantics-backups/postgres/
+      endpointURL: http://minio.minio.svc:9000
+      s3Credentials:
+        accessKeyId:
+          name: minio-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: minio-backup-creds
+          key: SECRET_ACCESS_KEY
+

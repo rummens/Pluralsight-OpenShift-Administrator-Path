@@ -1,0 +1,13 @@
+oc get clusterversion
+oc describe clusterversion #confirm
+
+# new
+oc get co
+oc describe co authentication #confirm
+
+# new
+oc adm upgrade
+
+# new
+oc adm upgrade --include-not-recommended
+

@@ -1,0 +1,2 @@
+oc delete namespace upgrade-readiness-pre-checks
+

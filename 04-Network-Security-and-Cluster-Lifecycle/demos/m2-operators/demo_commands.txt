@@ -1,0 +1,20 @@
+# -- Verify operator controller pod --
+oc get pods -n openshift-operators -l app.kubernetes.io/name=cloudnative-pg
+
+# cat
+cat cnpg-cluster.yaml
+
+# -- postgres-cluster.yaml --
+oc apply -f cnpg-cluster.yaml
+watch oc get pods -n globomantics-db  # confirm
+
+# history
+oc describe cluster cluster-globo
+
+# -- backup.yaml --
+oc apply -f cnpg-backup.yaml #wait 0
+watch oc get backup -n globomantics-db # confirm
+
+# -- verify backup data in MinIO bucket --
+oc apply -f cnpg-s3-debug-pod.yaml #confirm
+oc exec s3-debug -- aws --endpoint-url http://minio.minio.svc:9000 s3 ls --recursive s3://globomantics-backups/

@@ -1,0 +1,9 @@
+# redis-values.yaml
+architecture: replication  # deploys a primary + replicas instead of standalone
+
+auth:
+  enabled: true
+  password: "supersecret"
+
+replicaCount: 5
+

@@ -1,0 +1,3 @@
+# --- Cleanup Helm release and demo namespace ---
+helm uninstall my-redis -n globo-redis
+oc delete namespace globo-redis --ignore-not-found

@@ -1,0 +1,41 @@
+# check version
+oc version
+
+# check API removals
+oc get apirequestcounts
+
+# new
+oc describe apirequestcount flowschemas.v1beta3.flowcontrol.apiserver.k8s.io # confirm
+
+# new
+oc describe apirequestcount prioritylevelconfigurations.v1beta3.flowcontrol.apiserver.k8s.io # confirm
+
+# check
+oc get clusterversion version -o yaml
+
+# legacy
+cat prioritylevelconfiguration-v1beta3.yaml
+
+# understand API objects
+diff <(oc explain prioritylevelconfiguration --recursive --api-version=flowcontrol.apiserver.k8s.io/v1beta3) <(oc explain prioritylevelconfiguration --recursive --api-version=flowcontrol.apiserver.k8s.io/v1)
+oc explain prioritylevelconfiguration.spec.limited --api-version=flowcontrol.apiserver.k8s.io/v1
+
+# apply fixes
+oc apply -f flowschema-v1.yaml
+oc apply -f prioritylevelconfiguration-v1.yaml
+
+# check API removals again
+oc get apirequestcounts
+oc -n openshift-config patch cm admin-acks --patch '{"data":{"ack-4.18-kube-1.32-api-removals-in-4.19":"true"}}' --type=merge
+
+# new
+oc get clusterversion version -o yaml # confirm
+
+# check PDBs
+oc get pdb -A
+oc describe pdb legacy-app-pdb -n upgrade-readiness-demo
+
+# patch PDB to allow 1 unavailable
+oc patch pdb legacy-app-pdb -n upgrade-readiness-demo --type=merge -p '{"spec":{"maxUnavailable": 1}}'
+oc get pdb -A
+oc describe pdb legacy-app-pdb -n upgrade-readiness-demo # confirm

@@ -1,0 +1,4 @@
+# -- Cleanup CloudNativePG demo resources --
+oc delete backup globo-backup-01 -n globomantics-db --ignore-not-found
+oc delete cluster cluster-globo -n globomantics-db --ignore-not-found
+ oc delete pod s3-debug -n globomantics-db --ignore-not-found

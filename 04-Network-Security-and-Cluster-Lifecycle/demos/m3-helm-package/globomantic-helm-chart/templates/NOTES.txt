@@ -1,0 +1,7 @@
+1. Get the application route:
+{{- if .Values.route.enabled }}
+  oc -n {{ .Release.Namespace }} get route {{ include "globomantics-website.fullname" . }} -o jsonpath='{.spec.host}'
+{{- else }}
+  Route is disabled. Expose the service manually if needed.
+{{- end }}
+

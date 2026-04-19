@@ -1,0 +1,13 @@
+# Remove bucket bootstrap job and MinIO deployment
+oc delete job minio-create-globomantics-backups -n minio --ignore-not-found
+oc delete deployment minio -n minio --ignore-not-found
+oc delete service minio -n minio --ignore-not-found
+oc delete pvc minio-data -n minio --ignore-not-found
+oc delete secret minio-root-creds -n minio --ignore-not-found
+
+# Remove CNPG backup credentials
+oc delete secret minio-backup-creds -n globomantics-db --ignore-not-found
+
+# Remove MinIO namespace
+oc delete namespace minio --ignore-not-found
+

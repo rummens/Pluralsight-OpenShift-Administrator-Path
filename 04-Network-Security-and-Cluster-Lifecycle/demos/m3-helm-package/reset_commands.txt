@@ -1,0 +1,7 @@
+# --- Cleanup release and namespace ---
+helm uninstall globomantics-website -n globomantic-helm
+oc delete namespace globomantic-helm --ignore-not-found
+
+# --- Optional local cleanup ---
+cd ..
+rm -rf sample-globomantics-website

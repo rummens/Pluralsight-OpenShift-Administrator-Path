@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-globomantics-backups
+  namespace: minio
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: mc
+        image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+        command:
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p "$MC_CONFIG_DIR"
+          mc alias set local http://minio.minio.svc:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+          mc mb --ignore-existing local/globomantics-backups
+        env:
+        - name: HOME
+          value: /tmp
+        - name: MC_CONFIG_DIR
+          value: /tmp/.mc
+        envFrom:
+        - secretRef:
+            name: minio-root-creds
+

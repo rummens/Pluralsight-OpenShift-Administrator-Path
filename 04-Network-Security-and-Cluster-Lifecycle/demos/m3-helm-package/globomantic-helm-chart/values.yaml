@@ -1,0 +1,37 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/rummens/pluralsight-globomantics-website
+  tag: "v3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+route:
+  enabled: true
+  host: globomantics-website.apps.test.ocp.globomantics.com
+  tls:
+    termination: edge
+
+config:
+  dbHost: globomantics-website-redis-master
+  dbPort: "6379"
+  dbName: redis
+  dbUser: default
+
+resources: {}
+
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+    password: globo-secret-123
+  replica:
+    replicaCount: 2
+

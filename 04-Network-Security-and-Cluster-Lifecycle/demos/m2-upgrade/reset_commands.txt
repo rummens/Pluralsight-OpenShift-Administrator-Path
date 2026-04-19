@@ -1,0 +1,3 @@
+# --- Cleanup: restore MachineHealthChecks if left paused ---
+oc annotate machinehealthcheck <name> -n <namespace> cluster.x-k8s.io/paused-
+

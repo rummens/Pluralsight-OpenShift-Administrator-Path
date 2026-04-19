@@ -1,0 +1,24 @@
+# --- Check for MachineHealthCheck resources ---
+oc get machinehealthcheck -A
+
+# Pause each one found (repeat per resource)
+oc annotate machinehealthcheck machine-api-termination-handler -n openshift-machine-api cluster.x-k8s.io/paused=""
+
+# --- Confirm admin acknowledgment is in place (from previous demo) ---
+oc get cm admin-acks -n openshift-config -o yaml
+
+# --- Verify upgrade accepted ---
+watch oc get clusterversion # confirm
+
+# --- Watch Cluster Operators ---
+oc get co -w # confirm
+
+# --- After node reboots and recovers ---
+oc get node
+oc get clusterversion
+
+# --- Web console during reboot phase (alternative to CLI watch) ---
+
+# --- Restore MachineHealthChecks after upgrade completes ---
+oc annotate machinehealthcheck machine-api-termination-handler -n openshift-machine-api  cluster.x-k8s.io/paused-
+

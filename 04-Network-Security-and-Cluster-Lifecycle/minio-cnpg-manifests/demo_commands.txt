@@ -1,0 +1,19 @@
+# Apply MinIO resources
+oc apply -f namespace.yaml
+oc apply -f secret-minio-root-creds.yaml
+oc apply -f pvc-minio-data.yaml
+oc apply -f deployment-minio.yaml
+oc apply -f service-minio.yaml
+
+# Wait for MinIO and create backup bucket
+oc rollout status deployment/minio -n minio
+oc apply -f job-create-backup-bucket.yaml
+oc wait --for=condition=Complete job/minio-create-globomantics-backups -n minio --timeout=180s
+
+# Create CNPG backup credentials in the database namespace
+oc apply -f secret-cnpg-backup-creds.yaml
+
+# Optional verification
+oc get svc minio -n minio
+oc get job minio-create-globomantics-backups -n minio
+

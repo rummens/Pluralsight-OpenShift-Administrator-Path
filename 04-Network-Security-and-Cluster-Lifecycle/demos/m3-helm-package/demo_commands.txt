@@ -1,0 +1,46 @@
+# --- Scaffold sample chart to show Helm defaults ---
+helm create sample-globomantics-website
+ls sample-globomantics-website
+ls sample-globomantics-website/templates
+
+# --- Use prepared chart for the actual demo ---
+cd globomantic-helm-chart
+ls templates
+cat templates/deployment.yaml
+
+# show route
+cat templates/route.yaml
+
+# show values
+cat values.yaml
+
+# show Chart.yaml
+cat Chart.yaml
+
+# --- Fetch Redis dependency ---
+helm dependency update . # confirm
+
+# --- Validate before deploying ---
+helm lint .
+
+# Template
+helm template globomantics-website . -f values.yaml # confirm
+
+# --- Deploy to cluster ---
+oc project helm-demo
+helm install globomantics-website . -f values.yaml -n helm-demo
+
+# --- Observe rollout ---
+oc -n helm-demo get all
+oc -n helm-demo rollout status deployment/globomantics-website-globomantics-website
+oc -n helm-demo get route globomantics-website-globomantics-website -o jsonpath='{.spec.host}'
+
+# --- Upgrade workflow ---
+nano Chart.yaml # confirm
+sed -i '' 's/^replicaCount: 2$/replicaCount: 1/' values.yaml
+helm dependency update . # confirm
+
+# upgrade
+helm upgrade globomantics-website . -f values.yaml -n helm-demo
+watch oc -n helm-demo get all
+

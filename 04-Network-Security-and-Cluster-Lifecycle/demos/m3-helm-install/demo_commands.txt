@@ -1,0 +1,32 @@
+# --- Quick install from OCI chart ---
+helm install my-redis oci://registry-1.docker.io/cloudpirates/redis -n globo-redis --create-namespace --set auth.password=supersecretpassword
+
+# Verify release and resources
+helm list -n globo-redis
+watch oc get all -n globo-redis # confirm
+
+# --- Uninstall before values-file install ---
+helm uninstall my-redis -n globo-redis
+cat redis-values.yaml
+
+# Template using the values file
+helm template my-redis oci://registry-1.docker.io/cloudpirates/redis -f redis-values.yaml -n globo-redis # confirm
+
+# Install using the values file
+helm install my-redis oci://registry-1.docker.io/cloudpirates/redis -f redis-values.yaml -n globo-redis
+
+# --- Inspect the release ---
+helm status my-redis -n globo-redis
+helm get values my-redis -n globo-redis
+helm history my-redis -n globo-redis
+
+# --- Upgrade workflow ---
+sed -i '' 's/replicaCount: 3/replicaCount: 5/' redis-values.yaml
+helm upgrade my-redis oci://registry-1.docker.io/cloudpirates/redis -f redis-values.yaml -n globo-redis --reuse-values
+watch oc get all -n globo-redis #confirm
+
+# --- Rollback to revision 1 ---
+helm history my-redis -n globo-redis
+helm rollback my-redis 1 -n globo-redis
+helm history my-redis -n globo-redis
+watch oc get all -n globo-redis #confirm

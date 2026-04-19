@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: legacy-app-pdb
+  namespace: upgrade-readiness-demo
+spec:
+  maxUnavailable: 0    # blocks all voluntary evictions — drain will stall
+  selector:
+    matchLabels:
+      app: legacy-app

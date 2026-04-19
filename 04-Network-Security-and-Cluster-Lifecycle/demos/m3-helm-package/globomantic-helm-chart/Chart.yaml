@@ -1,0 +1,13 @@
+apiVersion: v2
+name: globomantics-website
+description: Helm chart for the Globomantics web application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+icon: https://www.vectorlogo.zone/logos/redis/redis-icon.svg
+dependencies:
+- name: redis
+  version: "=0.26.8"
+  repository: oci://registry-1.docker.io/cloudpirates
+  condition: redis.enabled
+
