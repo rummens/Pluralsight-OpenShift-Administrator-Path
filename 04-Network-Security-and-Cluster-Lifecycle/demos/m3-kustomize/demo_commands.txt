@@ -1,0 +1,61 @@
+# --- Folder setup ---
+tree .
+
+# --- Inspect base and prod overlay files ---
+cat base/deployment.yaml
+cat overlays/prod/replica-patch.yaml
+cat overlays/prod/kustomization.yaml
+
+# --- Render prod overlay, then apply ---
+oc kustomize overlays/prod/ #confirm
+oc apply -k overlays/prod/ -n prod
+oc get deployment my-app -n prod
+
+# --- Deploy dev directly, verify on cluster ---
+oc apply -k base/ -n dev
+oc get deployment my-app -n dev
+
+# --- Generators: inspect before edit ---
+cat overlays/qa/kustomization.yaml
+
+# Render to preview generated ConfigMap
+oc kustomize overlays/qa/ #confirm
+
+# Apply and verify
+oc apply -k overlays/qa/ -n qa
+oc get configmap -n qa
+
+# --- Silent failure demo: inspect broken patch ---
+tree overlays/broken
+
+# Render first — patch silently skipped, shows replicas: 1
+oc kustomize overlays/broken/ #confirm
+
+# Apply anyway to demonstrate silent failure
+oc apply -k overlays/broken/ -n dev
+oc get route my-app -n dev
+
+# Fix: edit overlays/broken/replica-patch.yaml, change name: my-app-v2 → name: my-app
+nano overlays/broken/kustomization.yaml #confirm
+oc kustomize overlays/broken/
+
+# Apply after fix
+oc apply -k overlays/broken/ -n dev
+oc get route my-app -n dev
+
+# --- demo-final: patches + generator together ---
+cat overlays/demo-final/kustomization.yaml
+
+# Render to see patches and ConfigMap resolved together
+oc kustomize overlays/demo-final/ #confirm
+
+# Apply and verify both resources
+oc apply -k overlays/demo-final/ -n demo-final
+oc get deployment my-app -n demo-final
+oc get configmap -n demo-final
+
+# --- Final sanity check ---
+oc get deployment my-app -n dev
+oc get deployment my-app -n demo-final
+oc get deployment my-app -n prod
+

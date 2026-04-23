@@ -1,0 +1,6 @@
+# --- Cleanup: overlay namespaces ---
+oc delete namespace dev --ignore-not-found
+oc delete namespace demo-final --ignore-not-found
+oc delete namespace prod --ignore-not-found
+oc delete namespace qa --ignore-not-found
+
