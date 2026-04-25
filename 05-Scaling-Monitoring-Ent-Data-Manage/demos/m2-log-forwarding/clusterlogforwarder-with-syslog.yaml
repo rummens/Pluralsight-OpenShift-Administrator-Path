@@ -1,0 +1,40 @@
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: collector
+  namespace: openshift-logging
+spec:
+  serviceAccount:
+    name: collector
+  outputs:
+  - name: default-lokistack
+    type: lokiStack
+    lokiStack:
+      target:
+        name: logging-loki
+        namespace: openshift-logging
+      authentication:
+        token:
+          from: serviceAccount
+    # Trust the service-CA-signed gateway cert (see m2-logging-stack/setup/lokistack-gateway-ca.yaml).
+    tls:
+      ca:
+        configMapName: lokistack-gateway-ca
+        key: service-ca.crt
+  - name: external-syslog
+    type: syslog
+    syslog:
+      url: tcp://syslog-receiver.siem.svc:5514
+      rfc: RFC5424
+  pipelines:
+  - name: app-infra-logs
+    inputRefs:
+    - application
+    - infrastructure
+    outputRefs:
+    - default-lokistack
+  - name: audit-to-siem
+    inputRefs:
+    - audit
+    outputRefs:
+    - external-syslog

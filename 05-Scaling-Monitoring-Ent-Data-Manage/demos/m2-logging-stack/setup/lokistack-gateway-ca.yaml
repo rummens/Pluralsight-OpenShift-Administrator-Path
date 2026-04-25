@@ -1,0 +1,17 @@
+# The LokiStack gateway's serving cert is signed by the OpenShift internal
+# service-serving CA (`openshift-service-serving-signer`). The collector pod's
+# default trust bundle (collector-trustbundle, populated by cluster-network-operator)
+# only contains public + cluster-proxy CAs, NOT the service-serving signer — so
+# Vector fails the gateway's cert with "self-signed certificate in certificate chain".
+#
+# This ConfigMap, annotated with `service.beta.openshift.io/inject-cabundle: "true"`,
+# is automatically populated by the openshift-service-ca operator with the
+# service-serving CA cert under the `service-ca.crt` key. The ClusterLogForwarder
+# references it (outputs[].tls.ca) so Vector trusts the gateway.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lokistack-gateway-ca
+  namespace: openshift-logging
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"

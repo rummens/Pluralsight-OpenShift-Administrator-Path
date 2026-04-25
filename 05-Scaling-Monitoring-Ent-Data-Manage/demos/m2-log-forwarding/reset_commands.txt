@@ -1,0 +1,3 @@
+# Cleanup: revert ClusterLogForwarder to the single-pipeline state from demo 4
+oc apply -f ../m2-logging-stack/clusterlogforwarder.yaml
+oc delete namespace audit-test --ignore-not-found

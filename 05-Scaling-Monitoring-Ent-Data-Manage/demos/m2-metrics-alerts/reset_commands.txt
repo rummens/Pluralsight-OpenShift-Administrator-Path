@@ -1,0 +1,2 @@
+# Cleanup: remove the PrometheusRule created during the demo
+oc delete prometheusrule globomantics-alerts -n globomantics-app --ignore-not-found

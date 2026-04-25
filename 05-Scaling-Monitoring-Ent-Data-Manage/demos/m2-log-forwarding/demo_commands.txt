@@ -1,0 +1,21 @@
+# SHOW CURRENT CONFIG
+oc -n openshift-logging get clusterlogforwarder collector -o yaml #wait 8
+
+# APPLY UPDATED CLUSTERLOGFORWARDER
+cat clusterlogforwarder-with-syslog.yaml #wait 10
+oc apply -f clusterlogforwarder-with-syslog.yaml
+
+# VERIFY COLLECTOR RESTART
+oc -n openshift-logging get pods -l app.kubernetes.io/component=collector #wait 6
+
+# GENERATE AUDIT TRAFFIC
+oc create namespace audit-test
+oc delete namespace audit-test #wait 4
+
+# VERIFY DELIVERY
+oc -n openshift-logging logs -l app.kubernetes.io/component=collector --tail=10 #wait 6
+oc -n siem logs deploy/syslog-receiver --tail=20 #wait 8
+
+# VERIFY APP LOGS UNAFFECTED (web console)
+# Navigate to Observe -> Logs
+# Query: {kubernetes_namespace_name="globomantics-app"}

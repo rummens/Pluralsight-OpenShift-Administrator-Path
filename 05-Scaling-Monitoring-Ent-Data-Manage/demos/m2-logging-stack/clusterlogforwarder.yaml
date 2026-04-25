@@ -1,0 +1,32 @@
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: collector
+  namespace: openshift-logging
+spec:
+  serviceAccount:
+    name: collector
+  outputs:
+  - name: default-lokistack
+    type: lokiStack
+    lokiStack:
+      target:
+        name: logging-loki
+        namespace: openshift-logging
+      authentication:
+        token:
+          from: serviceAccount
+    # Trust the OpenShift service-serving signer that signed the gateway cert.
+    # The lokistack-gateway-ca ConfigMap is set up in setup/lokistack-gateway-ca.yaml
+    # and auto-populated by the service-ca operator.
+    tls:
+      ca:
+        configMapName: lokistack-gateway-ca
+        key: service-ca.crt
+  pipelines:
+  - name: default-logs
+    inputRefs:
+    - application
+    - infrastructure
+    outputRefs:
+    - default-lokistack

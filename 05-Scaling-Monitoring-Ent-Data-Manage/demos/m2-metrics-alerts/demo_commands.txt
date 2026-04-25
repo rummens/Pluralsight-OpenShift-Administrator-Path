@@ -1,0 +1,24 @@
+# VERIFY MONITORING STACK
+oc get pods -n openshift-user-workload-monitoring #wait 6
+
+# VERIFY SERVICEMONITOR
+oc get servicemonitor -n globomantics-app #wait 6
+
+# PROMQL QUERIES (web console)
+# Navigate to Observe -> Targets, filter by globomantics-app
+# Navigate to Observe -> Metrics
+# Query 1: rate(http_requests_total{namespace="globomantics-app"}[5m])
+# Query 2: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace="globomantics-app"}[5m]))
+
+# CREATE PROMETHEUSRULE
+cat globomantics-prometheusrule.yaml #wait 10
+oc apply -f globomantics-prometheusrule.yaml
+
+# CONFIRM RULE REGISTERED
+oc get prometheusrules -n globomantics-app #wait 6
+
+# VERIFY ALERT (web console)
+# Navigate to Observe -> Alerting, filter for HighErrorRate
+
+# FINAL VERIFICATION
+oc get prometheusrules -n globomantics-app #wait 4

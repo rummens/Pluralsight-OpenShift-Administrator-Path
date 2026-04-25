@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syslog-receiver
+  namespace: siem
+  labels:
+    app: syslog-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syslog-receiver
+  template:
+    metadata:
+      labels:
+        app: syslog-receiver
+    spec:
+      containers:
+      - name: syslog
+        image: registry.access.redhat.com/ubi9/python-39:latest
+        # Tiny Python TCP listener on a non-privileged port (5514). This avoids
+        # needing root or CAP_NET_BIND_SERVICE under OpenShift restricted-v2 SCC,
+        # which the rsyslog-on-514 approach would require.
+        command:
+        - /bin/sh
+        - -c
+        - |
+          exec python3 -u -c '
+          import socketserver, sys
+          class H(socketserver.BaseRequestHandler):
+              def handle(self):
+                  while True:
+                      data = self.request.recv(4096)
+                      if not data:
+                          return
+                      sys.stdout.write(data.decode("utf-8", errors="replace"))
+                      sys.stdout.flush()
+          class S(socketserver.ThreadingTCPServer):
+              allow_reuse_address = True
+          print("syslog-receiver listening on tcp/5514", flush=True)
+          S(("0.0.0.0", 5514), H).serve_forever()
+          '
+        ports:
+        - containerPort: 5514
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syslog-receiver
+  namespace: siem
+spec:
+  selector:
+    app: syslog-receiver
+  ports:
+  - port: 5514
+    targetPort: 5514
+    protocol: TCP

@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: globomantics-alerts
+  namespace: globomantics-app
+spec:
+  groups:
+  - name: globomantics.rules
+    rules:
+    - alert: HighErrorRate
+      expr: |
+        sum(rate(http_requests_total{namespace="globomantics-app",code=~"4..|5.."}[5m]))
+        / sum(rate(http_requests_total{namespace="globomantics-app"}[5m])) > 0.05
+      for: 30s
+      labels:
+        severity: critical
+      annotations:
+        summary: "High HTTP error rate in globomantics-app"
+        description: "More than 5% of requests returning 4xx/5xx for 30+ seconds."

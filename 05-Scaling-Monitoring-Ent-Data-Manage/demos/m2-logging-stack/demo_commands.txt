@@ -1,0 +1,28 @@
+# VERIFY OPERATORS
+oc get csv -n openshift-logging #wait 6
+oc get csv -n openshift-operators-redhat #wait 6
+
+# OBJECT STORAGE SECRET
+oc -n openshift-logging create secret generic lokistack-storage --from-literal=access_key_id=root --from-literal=access_key_secret=demo-secret-password-12345 --from-literal=bucketnames=loki-logs --from-literal=endpoint=https://minio.minio.svc:9000 #wait 4
+
+# LOKISTACK
+cat lokistack.yaml #wait 10
+oc apply -f lokistack.yaml
+
+# WAIT FOR LOKI PODS
+oc -n openshift-logging get pods -l app.kubernetes.io/name=lokistack -w #confirm
+
+# CLUSTERLOGFORWARDER
+cat clusterlogforwarder.yaml #wait 10
+oc apply -f clusterlogforwarder.yaml
+
+# VERIFY COLLECTOR PODS
+oc -n openshift-logging get pods -l app.kubernetes.io/component=collector #wait 6
+
+# VERIFY COLLECTOR COVERAGE
+oc -n openshift-logging get pods -l app.kubernetes.io/component=collector -o wide #wait 6
+
+# QUERY LOGS (web console)
+# Navigate to Observe -> Logs
+# Query 1: {kubernetes_namespace_name="globomantics-app"} |= "error"
+# Query 2: {kubernetes_namespace_name="globomantics-app"} | json | level="error"
