@@ -1,0 +1,35 @@
+# BASELINE
+oc get nodes #wait 5
+oc get mcp
+
+# APPLY GOOD MACHINECONFIG
+cat 99-master-demo-kernelarg.yaml #wait 10
+oc apply -f 99-master-demo-kernelarg.yaml
+
+# WATCH ROLLOUT
+watch oc get mcp #confirm
+watch oc get nodes #confirm
+oc get mcp #wait 10
+
+# VERIFY KERNEL ARGUMENT ON NODE
+oc debug node/94-237-83-254.de-fra1.upcloud.host -- chroot /host cat /proc/cmdline #confirm
+
+# APPLY BROKEN MACHINECONFIG
+cat 99-master-bad-config.yaml #wait 10
+oc apply -f 99-master-bad-config.yaml
+
+# WATCH DEGRADATION
+watch oc get mcp #confirm
+
+# TROUBLESHOOT VIA MCD LOGS
+oc logs -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --tail=30 #wait 10
+
+# RECOVER: DELETE BAD MC
+oc delete mc 99-master-bad-config
+oc get mcp #wait 10
+watch oc get nodes #confirm
+oc get mcp #confirm
+
+# FINAL VERIFICATION
+oc get nodes #wait 5
+oc get mcp #wait 5

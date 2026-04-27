@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: quay-bootstrap
+  namespace: {{ .Values.quay.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: quay-bootstrap
+  namespace: {{ .Values.quay.namespace }}
+rules:
+  - apiGroups: ["quay.redhat.com"]
+    resources: ["quayregistries"]
+    verbs: ["create", "get", "list", "patch", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  # superuser-bootstrap-job needs to look up the operator-managed Route to
+  # discover the externally-resolvable hostname (it's set by the route
+  # component, we don't know it at chart-render time).
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list"]
+  # superuser-bootstrap-job reads the credentials Secret it'll POST to
+  # /api/v1/user/initialize.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: quay-bootstrap
+  namespace: {{ .Values.quay.namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: quay-bootstrap
+    namespace: {{ .Values.quay.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: quay-bootstrap
+---
+# Cluster-scoped read on CRDs so the bootstrap Job can wait for the
+# QuayRegistry CRD to be registered by the Quay Operator.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: quay-bootstrap-crd-reader
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: quay-bootstrap-crd-reader
+subjects:
+  - kind: ServiceAccount
+    name: quay-bootstrap
+    namespace: {{ .Values.quay.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: quay-bootstrap-crd-reader
+---
+# Scoped delete-permissions on OLM resources in openshift-operators so the
+# pre-delete cleanup Job can remove the Subscriptions, CSVs, and InstallPlans
+# that Helm would otherwise leak. Without this, helm uninstall + helm install
+# fails on the second cycle with "ConstraintsNotSatisfiable" because the CSV
+# from the first install is still around but no longer owned by a subscription.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: quay-bootstrap-olm-cleanup
+  namespace: openshift-operators
+rules:
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["subscriptions", "clusterserviceversions", "installplans"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: quay-bootstrap-olm-cleanup
+  namespace: openshift-operators
+subjects:
+  - kind: ServiceAccount
+    name: quay-bootstrap
+    namespace: {{ .Values.quay.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: quay-bootstrap-olm-cleanup

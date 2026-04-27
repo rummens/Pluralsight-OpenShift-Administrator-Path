@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quayregistry-bootstrap
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: quay-bootstrap
+      containers:
+        - name: bootstrap
+          image: {{ .Values.images.cli }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Waiting up to {{ .Values.crdWaitSeconds }}s for QuayRegistry CRD..."
+              deadline=$(( $(date +%s) + {{ .Values.crdWaitSeconds }} ))
+              until kubectl get crd quayregistries.quay.redhat.com >/dev/null 2>&1; do
+                if [ "$(date +%s)" -ge "$deadline" ]; then
+                  echo "ERROR: CRD did not register before deadline"
+                  exit 1
+                fi
+                sleep 5
+              done
+              echo "CRD ready. Applying QuayRegistry..."
+              kubectl apply -f /manifests/quayregistry.yaml
+              echo "OK"
+          volumeMounts:
+            - name: manifest
+              mountPath: /manifests
+      volumes:
+        - name: manifest
+          configMap:
+            name: quayregistry-manifest

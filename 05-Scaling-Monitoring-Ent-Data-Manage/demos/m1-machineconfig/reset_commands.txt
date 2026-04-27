@@ -1,0 +1,3 @@
+# Cleanup: remove demo MachineConfigs (triggers a final MCO rollout to revert)
+oc delete mc 99-worker-ip-forward --ignore-not-found
+oc delete mc 99-worker-bad-config --ignore-not-found

@@ -1,0 +1,31 @@
+quay:
+  namespace: quay-enterprise
+  registryName: globomantics-quay
+  operatorChannel: stable-3.13
+  # Bootstrap superuser created via Quay's /api/v1/user/initialize endpoint
+  # right after the operator finishes the install. Idempotent — if a user with
+  # this name already exists the Job exits cleanly. Used by the demo recording
+  # host so cosign push and the Quay UI walkthrough have a known account.
+  bootstrapUser:
+    username: globomantics
+    password: globomantics-demo-pw
+    email: globomantics@example.com
+
+cso:
+  channel: stable-3.13
+
+minio:
+  scheme: http
+  host: minio.minio.svc
+  port: 9000
+  accessKey: root
+  secretKey: demo-secret-password-12345
+  bucket: quay
+
+images:
+  mc: quay.io/minio/mc:latest
+  cli: quay.io/openshift/origin-cli:latest
+
+# How long the bootstrap Job waits for the QuayRegistry CRD to register
+# (the operator usually publishes it within ~60s of the Subscription landing)
+crdWaitSeconds: 600

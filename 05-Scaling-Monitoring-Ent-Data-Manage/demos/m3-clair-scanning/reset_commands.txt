@@ -1,0 +1,7 @@
+# Cleanup: nothing cluster-side is created by this demo
+# - The vulnerable tag lives in Quay; remove it via Quay UI or:
+#     docker rmi quay.example.com/globomantics/payments-api:v1.0
+# - ImageManifestVuln objects are managed by the Container Security Operator
+#   and rebuild automatically while the image is present in Quay
+# - The webhook notification on payments-api is configured in Quay UI;
+#   delete it under Settings -> Events and Notifications between takes

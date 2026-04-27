@@ -1,0 +1,13 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterImagePolicy
+metadata:
+  name: globomantics-signed-only
+spec:
+  scopes:
+  - quay.example.com/globomantics
+  policy:
+    rootOfTrust:
+      policyType: PublicKey
+      publicKey:
+        # base64 of cosign.pub (regenerate with: base64 cosign.pub | tr -d '\n')
+        keyData: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFZ3FZTFFBeHkrTU91R1RZcG9SRDZVcFEzcENzbQpGeEdwYnBEZW9jNWdscVpHeTUzV0tZcFRkRUl5WWp0VjlVTHJuTEpjdzJDanlwdXhIQ0V6QVJlb3lBPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==

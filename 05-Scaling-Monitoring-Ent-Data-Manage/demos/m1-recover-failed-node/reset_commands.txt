@@ -1,0 +1,6 @@
+# Cleanup: ensure node is back online and remove demo workload
+# (Safety net — if the demo was interrupted before manual SSH recovery,
+# the kubelet on worker01 may still be masked. Run this on the node first:
+#   ssh core@<worker01-ip> "sudo systemctl unmask kubelet && sudo systemctl start kubelet")
+oc adm uncordon worker01 --ignore-not-found
+oc delete namespace drain-demo --ignore-not-found

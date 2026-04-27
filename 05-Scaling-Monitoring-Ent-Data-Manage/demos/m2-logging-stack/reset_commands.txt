@@ -1,4 +1,5 @@
 # Cleanup: remove the resources created live during the demo
+oc delete uiplugin logging --ignore-not-found
 oc delete clusterlogforwarder collector -n openshift-logging --ignore-not-found
 oc delete lokistack logging-loki -n openshift-logging --ignore-not-found #wait 10
 oc delete secret lokistack-storage -n openshift-logging --ignore-not-found

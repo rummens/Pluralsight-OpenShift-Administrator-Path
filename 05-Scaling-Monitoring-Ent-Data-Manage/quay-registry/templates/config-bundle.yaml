@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quay-config-bundle
+  namespace: {{ .Values.quay.namespace }}
+stringData:
+  config.yaml: |
+    DISTRIBUTED_STORAGE_CONFIG:
+      default:
+        - RadosGWStorage
+        - access_key: {{ .Values.minio.accessKey }}
+          secret_key: {{ .Values.minio.secretKey }}
+          bucket_name: {{ .Values.minio.bucket }}
+          # Path inside the bucket where Quay writes blobs. Required positional
+          # arg for the RadosGWStorage driver — omitting it crashes the
+          # quay-app-upgrade Job with: "RadosGWStorage.__init__() missing 1
+          # required positional argument: 'storage_path'".
+          storage_path: /datastorage/registry
+          hostname: {{ .Values.minio.host }}
+          is_secure: {{ eq .Values.minio.scheme "https" }}
+          port: {{ .Values.minio.port }}
+    DISTRIBUTED_STORAGE_DEFAULT_LOCATIONS: []
+    DISTRIBUTED_STORAGE_PREFERENCE:
+      - default
+    FEATURE_GENERAL_OCI_SUPPORT: true
+    FEATURE_QUOTA_MANAGEMENT: true
+    # Open the /api/v1/user/initialize endpoint so the superuser-bootstrap
+    # Job can create the first user without auth. Quay locks this endpoint
+    # automatically after the first successful call.
+    FEATURE_USER_INITIALIZE: true
+    SUPER_USERS:
+      - {{ .Values.quay.bootstrapUser.username }}
+    SETUP_COMPLETE: true

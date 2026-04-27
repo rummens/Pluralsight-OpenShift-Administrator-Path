@@ -38,3 +38,4 @@ spec:
     - audit
     outputRefs:
     - external-syslog
+    - default-lokistack

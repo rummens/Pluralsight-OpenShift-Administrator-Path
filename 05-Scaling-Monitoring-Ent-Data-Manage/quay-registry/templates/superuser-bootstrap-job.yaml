@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quay-bootstrap-user
+  namespace: {{ .Values.quay.namespace }}
+type: Opaque
+stringData:
+  username: {{ .Values.quay.bootstrapUser.username | quote }}
+  password: {{ .Values.quay.bootstrapUser.password | quote }}
+  email:    {{ .Values.quay.bootstrapUser.email    | quote }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quay-superuser-bootstrap
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    # Run after the QuayRegistry CR is reconciled and Quay is responding.
+    # weight 20 puts it after the bucket-create (5) and quayregistry-bootstrap
+    # (10) hooks.
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "20"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: quay-bootstrap
+      containers:
+        - name: bootstrap-user
+          image: {{ .Values.images.cli }}
+          env:
+            - name: USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: quay-bootstrap-user
+                  key: username
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: quay-bootstrap-user
+                  key: password
+            - name: EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: quay-bootstrap-user
+                  key: email
+            - name: REGISTRY_NAMESPACE
+              value: {{ .Values.quay.namespace }}
+            - name: REGISTRY_NAME
+              value: {{ .Values.quay.registryName }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+
+              # 1. Discover the operator-managed Route hostname.
+              ROUTE_HOST=$(kubectl -n "$REGISTRY_NAMESPACE" \
+                get route "${REGISTRY_NAME}-quay" \
+                -o jsonpath='{.spec.host}')
+              if [ -z "$ROUTE_HOST" ]; then
+                echo "ERROR: could not resolve route ${REGISTRY_NAME}-quay"
+                exit 1
+              fi
+              QUAY_URL="https://${ROUTE_HOST}"
+              echo "Quay URL: $QUAY_URL"
+
+              # 2. Wait until Quay's health endpoint is happy. Routes go up
+              #    a few seconds before the app is fully ready.
+              echo "Waiting for Quay to respond..."
+              deadline=$(( $(date +%s) + 600 ))
+              until curl -k -s -f "${QUAY_URL}/health/instance" >/dev/null; do
+                if [ "$(date +%s)" -ge "$deadline" ]; then
+                  echo "ERROR: Quay did not become healthy in 10 min"
+                  exit 1
+                fi
+                sleep 5
+              done
+              echo "Quay is healthy."
+
+              # 3. Idempotency check: if the user already exists, the
+              #    initialize endpoint will reject us. Skip cleanly in that
+              #    case so re-running the chart's post-upgrade hook is safe.
+              CHECK_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" \
+                "${QUAY_URL}/api/v1/users/${USERNAME}")
+              if [ "$CHECK_CODE" = "200" ]; then
+                echo "User '${USERNAME}' already exists — skipping initialize."
+                exit 0
+              fi
+
+              # 4. Create the first user via /api/v1/user/initialize. Requires
+              #    FEATURE_USER_INITIALIZE: true in the config bundle and
+              #    SUPER_USERS to include $USERNAME (both set by this chart).
+              echo "Initializing first user '${USERNAME}'..."
+              BODY=$(printf '{"username":"%s","password":"%s","email":"%s","access_token":true}' \
+                "$USERNAME" "$PASSWORD" "$EMAIL")
+              RESP=$(curl -k -s -w "\n%{http_code}" -X POST \
+                "${QUAY_URL}/api/v1/user/initialize" \
+                -H "Content-Type: application/json" \
+                -d "$BODY")
+              CODE=$(echo "$RESP" | tail -n1)
+              JSON=$(echo "$RESP" | head -n -1)
+
+              if [ "$CODE" != "200" ]; then
+                echo "ERROR: initialize returned HTTP $CODE"
+                echo "$JSON"
+                # Treat "already initialized" responses as success so re-runs
+                # are idempotent even if the user-existence check above raced.
+                if echo "$JSON" | grep -qiE 'already.*(initialize|user)|cannot initialize'; then
+                  echo "Treating as already-initialized — exiting cleanly."
+                  exit 0
+                fi
+                exit 1
+              fi
+
+              echo "User '${USERNAME}' created."
+              echo "OK"

@@ -22,7 +22,13 @@ oc -n openshift-logging get pods -l app.kubernetes.io/component=collector #wait 
 # VERIFY COLLECTOR COVERAGE
 oc -n openshift-logging get pods -l app.kubernetes.io/component=collector -o wide #wait 6
 
+# ENABLE CONSOLE LOGS TAB (UIPlugin from Cluster Observability Operator)
+cat uiplugin-logging.yaml #wait 8
+oc apply -f uiplugin-logging.yaml
+oc -n openshift-operators get pods -l app.kubernetes.io/name=logging-view-plugin #wait 6
+
 # QUERY LOGS (web console)
+# Reload the console tab so the newly registered plugin shows up
 # Navigate to Observe -> Logs
 # Query 1: {kubernetes_namespace_name="globomantics-app"} |= "error"
 # Query 2: {kubernetes_namespace_name="globomantics-app"} | json | level="error"

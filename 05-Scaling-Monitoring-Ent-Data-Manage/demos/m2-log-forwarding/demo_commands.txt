@@ -1,5 +1,5 @@
 # SHOW CURRENT CONFIG
-oc -n openshift-logging get clusterlogforwarder collector -o yaml #wait 8
+oc -n openshift-logging get clusterlogforwarder collector -o yaml #confirm
 
 # APPLY UPDATED CLUSTERLOGFORWARDER
 cat clusterlogforwarder-with-syslog.yaml #wait 10
@@ -10,12 +10,14 @@ oc -n openshift-logging get pods -l app.kubernetes.io/component=collector #wait 
 
 # GENERATE AUDIT TRAFFIC
 oc create namespace audit-test
-oc delete namespace audit-test #wait 4
+oc delete namespace audit-test #wait 30
 
 # VERIFY DELIVERY
-oc -n openshift-logging logs -l app.kubernetes.io/component=collector --tail=10 #wait 6
-oc -n siem logs deploy/syslog-receiver --tail=20 #wait 8
+oc -n openshift-logging logs -l app.kubernetes.io/component=collector --tail=10
+
+# Check Syslog
+oc -n siem logs deploy/syslog-receiver --since=2m | grep -oE '\{"@timestamp".*\}$' | jq -Rc 'fromjson? // empty | select(.objectRef.resource=="namespaces" and .objectRef.name=="audit-test") | {ts: .timestamp, verb, user: .user.username, resource: .objectRef.resource, code: .responseStatus.code}' # confirm
 
 # VERIFY APP LOGS UNAFFECTED (web console)
 # Navigate to Observe -> Logs
-# Query: {kubernetes_namespace_name="globomantics-app"}
+# Query: {log_type="audit"} | json | objectRef_resource="namespaces" | objectRef_name="audit-test" | verb=~"create|delete"

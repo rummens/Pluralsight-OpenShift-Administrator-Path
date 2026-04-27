@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quay-bucket-create
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: {{ .Values.images.mc }}
+          env:
+            # On OpenShift the pod runs as a random UID with no writable HOME,
+            # so mc fails to create its config dir at "/.mc". Redirect both
+            # HOME and MC_CONFIG_DIR to /tmp.
+            - name: HOME
+              value: /tmp
+            - name: MC_CONFIG_DIR
+              value: /tmp/.mc
+            # mc reads connection details from MC_HOST_<alias>
+            - name: MC_HOST_minio
+              value: "{{ .Values.minio.scheme }}://{{ .Values.minio.accessKey }}:{{ .Values.minio.secretKey }}@{{ .Values.minio.host }}:{{ .Values.minio.port }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Ensuring bucket {{ .Values.minio.bucket }} on {{ .Values.minio.host }}:{{ .Values.minio.port }}"
+              mc mb --ignore-existing minio/{{ .Values.minio.bucket }}
+              mc ls minio/{{ .Values.minio.bucket }} >/dev/null
+              echo "OK"

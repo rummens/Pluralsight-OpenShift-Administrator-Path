@@ -219,3 +219,4 @@ __marimo__/
 *.skill
 /05-Scaling-Monitoring-Ent-Data-Manage/cert-manager-public/cloudflare-token.txt
 _test_run_report.md
+/pluralsight-demo-tester/

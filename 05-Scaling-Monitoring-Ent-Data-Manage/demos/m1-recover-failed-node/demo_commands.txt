@@ -1,0 +1,31 @@
+# BASELINE
+oc get nodes -o wide #wait 5
+oc get pods -n drain-demo -o wide #wait 5
+
+# BREAK NODE — STOP AND MASK KUBELET
+oc debug node/worker01 -- chroot /host bash -c "systemctl mask kubelet && systemctl stop kubelet" #wait 5
+
+# WATCH NODE GO NOTREADY
+oc get nodes -w #confirm
+
+# INVESTIGATE NODE CONDITIONS
+oc describe node worker01
+
+# CORDON AND DRAIN
+oc adm cordon worker01
+oc adm drain worker01 --ignore-daemonsets --delete-emptydir-data #wait 10
+oc get pods -n drain-demo -o wide #wait 5
+
+# RECOVER VIA SSH (KUBELET RESTART)
+# Note: substitute <worker01-ip> with the InternalIP captured in Prerequisites
+ssh core@<worker01-ip> "sudo systemctl unmask kubelet && sudo systemctl start kubelet"
+
+# WATCH RECOVERY
+oc get nodes -w #confirm
+oc adm uncordon worker01
+oc get nodes #wait 5
+
+# POST-RECOVERY VALIDATION
+oc get pvc -A | grep -v Bound #wait 3
+oc get pods -A | grep -v Running | grep -v Completed #wait 5
+oc get mcp #wait 5

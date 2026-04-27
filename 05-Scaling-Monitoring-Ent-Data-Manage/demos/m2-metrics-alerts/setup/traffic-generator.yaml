@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: globomantics-app
+  labels:
+    app: traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-generator
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+    spec:
+      containers:
+      - name: traffic
+        image: registry.redhat.io/openshift4/ose-cli:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Drives ~20% 5xx error rate against sample-app to make
+          # the HighErrorRate PrometheusRule fire on demand.
+          # 1 request/second; every 5th request hits /err.
+          set -u
+          i=0
+          while true; do
+            i=$((i + 1))
+            if [ $((i % 5)) -eq 0 ]; then
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://sample-app.globomantics-app.svc:8080/err || echo 000)
+            else
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://sample-app.globomantics-app.svc:8080 || echo 000)
+            fi
+          case $code in
+              2*) lvl=info ;;
+              4*|5*) lvl=error ;;
+              *) lvl=warn ;;
+            esac
+            echo "{\"level\":\"$lvl\",\"status\":$code,\"path\":\"/err\",\"ts\":\"$(date -uIs)\"}"
+            sleep 1
+          done
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

@@ -1,0 +1,10 @@
+# Cleanup: cluster-wide policy + namespace-scoped policy
+oc delete clusterimagepolicy globomantics-signed-only --ignore-not-found #wait 10
+oc delete imagepolicy globomantics-signed-only -n globomantics-app --ignore-not-found #wait 10
+
+# Cleanup: pods created during the demo
+oc -n globomantics-app delete pod signed-test unsigned-test unsigned-test-2 --ignore-not-found
+oc -n default delete pod unsigned-default --ignore-not-found
+
+# Cleanup: break-glass namespace (and its hotfix-test pod)
+oc delete namespace globomantics-breakglass --ignore-not-found

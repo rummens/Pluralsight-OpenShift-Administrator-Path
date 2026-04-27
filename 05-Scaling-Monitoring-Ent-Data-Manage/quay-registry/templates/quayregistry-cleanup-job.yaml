@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quayregistry-cleanup
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: quay-bootstrap
+      containers:
+        - name: cleanup
+          image: {{ .Values.images.cli }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              NS="{{ .Values.quay.namespace }}"
+              OP_NS="openshift-operators"
+
+              echo "Deleting QuayRegistry {{ .Values.quay.registryName }}..."
+              kubectl delete quayregistry {{ .Values.quay.registryName }} \
+                -n "$NS" --ignore-not-found --wait=true
+
+              # Delete OLM resources in openshift-operators so a re-install
+              # of the chart can resolve cleanly. Without this, Helm's uninstall
+              # leaves the CSVs behind and the next install fails with
+              # "constraints not satisfiable: clusterserviceversion ... exists
+              # and is not referenced by a subscription".
+              echo "Cleaning up OLM resources in $OP_NS..."
+
+              # 1) Subscriptions first — stops OLM from recreating the CSV
+              #    while we're about to delete it.
+              kubectl delete subscription -n "$OP_NS" \
+                quay-operator container-security-operator \
+                --ignore-not-found
+
+              # 2) CSVs by package label (handles version drift across releases).
+              kubectl delete csv -n "$OP_NS" \
+                -l operators.coreos.com/quay-operator.openshift-operators \
+                --ignore-not-found
+              kubectl delete csv -n "$OP_NS" \
+                -l operators.coreos.com/container-security-operator.openshift-operators \
+                --ignore-not-found
+
+              # 3) InstallPlans can also leak — same label-based filter.
+              kubectl delete installplan -n "$OP_NS" \
+                -l operators.coreos.com/quay-operator.openshift-operators \
+                --ignore-not-found
+              kubectl delete installplan -n "$OP_NS" \
+                -l operators.coreos.com/container-security-operator.openshift-operators \
+                --ignore-not-found
+
+              echo "OK"

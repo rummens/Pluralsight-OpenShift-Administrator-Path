@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quayregistry-manifest
+  namespace: {{ .Values.quay.namespace }}
+data:
+  quayregistry.yaml: |
+    apiVersion: quay.redhat.com/v1
+    kind: QuayRegistry
+    metadata:
+      name: {{ .Values.quay.registryName }}
+      namespace: {{ .Values.quay.namespace }}
+    spec:
+      configBundleSecret: quay-config-bundle
+      components:
+        # Sized for the Globomantics lab cluster (3x16GiB UpCloud nodes).
+        # Quay's defaults (replicas: 2, quay-app at 8GiB request) won't
+        # schedule when other operators are also running. Single-replica
+        # overrides keep the demo small enough to fit and skip the HPA.
+        - kind: clair
+          managed: true
+          overrides:
+            replicas: 1
+            resources:
+              requests: {cpu: 500m, memory: 1Gi}
+              limits:   {cpu: "1",  memory: 2Gi}
+        - kind: clairpostgres
+          managed: true
+        - kind: postgres
+          managed: true
+        - kind: redis
+          managed: true
+        - kind: route
+          managed: true
+        - kind: tls
+          managed: true
+        - kind: mirror
+          managed: true
+          overrides:
+            replicas: 1
+            resources:
+              requests: {cpu: 250m, memory: 512Mi}
+              limits:   {cpu: 500m, memory: 1Gi}
+        - kind: monitoring
+          managed: true
+        - kind: horizontalpodautoscaler
+          managed: false
+        - kind: quay
+          managed: true
+          overrides:
+            replicas: 1
+            # Quay's quay-app pod runs supervisord with ~14 worker processes by
+            # default (WORKER_COUNT_WEB=4, WORKER_COUNT_REGISTRY=8,
+            # WORKER_COUNT_SECSCAN=2). On a 4 GiB lab pod that overshoots
+            # quickly — gunicorn-web stalls, the startup probe sees 502 from
+            # nginx, and the kubelet keeps killing the container. Halve the
+            # worker counts and give it 6 GiB.
+            env:
+              - name: WORKER_COUNT_WEB
+                value: "2"
+              - name: WORKER_COUNT_REGISTRY
+                value: "4"
+              - name: WORKER_COUNT_SECSCAN
+                value: "1"
+            resources:
+              requests: {cpu: 500m, memory: 3Gi}
+              limits:   {cpu: "2",  memory: 6Gi}
+        # Provided externally via the configBundleSecret (MinIO at {{ .Values.minio.host }}:{{ .Values.minio.port }})
+        - kind: objectstorage
+          managed: false

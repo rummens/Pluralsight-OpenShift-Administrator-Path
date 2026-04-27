@@ -1,0 +1,28 @@
+# CONFIRM CLAIR IS UP AND MANAGED
+oc -n quay-enterprise get quayregistry #wait 6
+oc -n quay-enterprise get pods -l quay-component=clair-app #wait 6
+oc -n quay-enterprise get pods -l quay-component=clair-postgres #wait 6
+
+# PUSH THE DELIBERATELY VULNERABLE IMAGE
+docker tag node:18.16 quay.example.com/globomantics/payments-api:v1.0
+docker push quay.example.com/globomantics/payments-api:v1.0 #wait 15
+
+# QUAY UI WALKTHROUGH (manual)
+# Browser -> globomantics -> payments-api -> Tags
+# Click the security icon next to v1.0
+# Walk the severity breakdown: Critical / High / Medium / Low / Unknown
+# Open a High openssl finding, point at the "Fix Available" column
+# Toggle "Show only fixable" to collapse the list to a real to-do list
+# Settings -> Events and Notifications -> Create Notification
+#   Event:    Package Vulnerability Found
+#   Severity: High
+#   Method:   Webhook -> <slack-or-ticket-endpoint>
+#   Title:    payments-api High+ CVE detected
+
+# OPENSHIFT-SIDE VIEW VIA CONTAINER SECURITY OPERATOR (manual)
+# OpenShift web console -> Workloads -> Pods
+# Open a pod running payments-api -> Vulnerabilities tab
+# Same Clair finding shows up inline next to the pod
+
+# LIST IMAGEMANIFESTVULNS CLUSTER-WIDE
+oc get imagemanifestvulns -A #wait 6
