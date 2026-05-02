@@ -1,5 +1,7 @@
-# ── Patch IngressController to use the new certificate ───────────────────────
+# show clusterissuer
+oc get clusterissuers.cert-manager.io
 
+# ── Patch IngressController to use the new certificate ───────────────────────
 curl -v --insecure https://api.test.ocp.globomantics.com:6443 2>&1 | grep -A5 "subject\|issuer"
 
 oc -n openshift-ingress-operator patch ingresscontroller default \

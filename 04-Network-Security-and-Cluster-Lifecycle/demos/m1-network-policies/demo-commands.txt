@@ -38,6 +38,9 @@ oc exec -n tools curl-test -- curl --max-time 5 http://$BACKEND_IP #wait 8
 # Port granularity — port 8080 still blocked by deny-all
 oc exec -n frontend deploy/frontend-app -- curl --max-time 5 http://$BACKEND_IP:8080 #wait 8
 
+# get servicemonitor
+oc get servicemonitor backend-app-monitor -n backend
+
 # MONITORING — show no data via Thanos Querier, then fix
 TOKEN=$(oc whoami -t)
 THANOS=$(oc get route thanos-querier -n openshift-monitoring -ojsonpath='{.spec.host}')
