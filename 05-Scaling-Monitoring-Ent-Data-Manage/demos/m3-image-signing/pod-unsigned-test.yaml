@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unsigned-test
+  namespace: globomantics-app
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: unsigned-test
+      image: globomantics-quay-quay-quay-enterprise.apps.ocp-test.demo.rummens.de/globomantics/website:v1.0
+      imagePullPolicy: Always
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL

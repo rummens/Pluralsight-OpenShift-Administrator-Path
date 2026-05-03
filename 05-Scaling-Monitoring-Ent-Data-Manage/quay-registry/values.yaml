@@ -15,9 +15,9 @@ cso:
   channel: stable-3.13
 
 minio:
-  scheme: http
-  host: minio.minio.svc
-  port: 9000
+  scheme: https
+  host: minio-api.apps.ocp-test.demo.rummens.de
+  port: 443
   accessKey: root
   secretKey: demo-secret-password-12345
   bucket: quay

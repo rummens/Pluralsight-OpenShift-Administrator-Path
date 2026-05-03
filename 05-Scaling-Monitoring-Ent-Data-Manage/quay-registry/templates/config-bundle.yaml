@@ -24,6 +24,12 @@ stringData:
       - default
     FEATURE_GENERAL_OCI_SUPPORT: true
     FEATURE_QUOTA_MANAGEMENT: true
+    # Stream blob downloads through Quay instead of redirecting clients to
+    # the storage backend. Without this, RadosGWStorage hands callers a
+    # presigned URL pointing at the in-cluster MinIO ClusterIP, which is
+    # unreachable from anything outside the cluster (cosign, docker pull,
+    # browser). With this enabled Quay proxies the bytes itself.
+    FEATURE_PROXY_STORAGE: true
     # Open the /api/v1/user/initialize endpoint so the superuser-bootstrap
     # Job can create the first user without auth. Quay locks this endpoint
     # automatically after the first successful call.

@@ -1,61 +1,70 @@
-# SIGN AND VERIFY LOCALLY
-cosign sign --key cosign.key quay.example.com/globomantics/payments-api:v2.0 #wait 15
-cosign verify --key cosign.pub quay.example.com/globomantics/payments-api:v2.0 #wait 6
-cosign tree quay.example.com/globomantics/payments-api:v2.0 #wait 6
+# COSIGN_PASSWORD: answers the cosign 2.x key-password prompt non-interactively.
+# COSIGN_YES: auto-accepts the sigstore TOS prompt that cosign 2.x prints
+# before uploading the entry to Rekor.
+export COSIGN_PASSWORD=""
+export COSIGN_YES=true
+
+# Cosign needs registry credentials to push the .sig artifact. Without them
+IMAGE=globomantics-quay-quay-quay-enterprise.apps.ocp-test.demo.rummens.de/globomantics/website
+REGISTRY="${IMAGE%%/*}"
+cosign login -u globomantics -p globomantics-demo-pw "$REGISTRY" #wait 5
+
+# Resolve the v2.0 tag to its immutable content-address digest. cosign 2.x
+DIGEST=$(crane digest ${IMAGE}:v2.0) #wait 5
+echo "Signing ${IMAGE}@${DIGEST}" #wait 3
+
+# --recursive signs the manifest list AND each per-platform child manifest.
+cosign sign --recursive --key cosign.key ${IMAGE}@${DIGEST} #wait 15
+cosign verify --key cosign.pub ${IMAGE}@${DIGEST} #confirm
+
+# tree
+cosign tree ${IMAGE}@${DIGEST} #wait 6
 
 # APPLY THE CLUSTERIMAGEPOLICY
-cat globomantics-clusterimagepolicy.yaml #wait 10
+cat globomantics-clusterimagepolicy.yaml #wait 5
 oc apply -f globomantics-clusterimagepolicy.yaml
-
-# WAIT FOR MCO ROLLOUT
-oc get clusterimagepolicy #confirm
-# The policy generates a 99-* MachineConfig that the MCO rolls out node-by-node.
-# Block on it so the next step shows the new policy.json, not the stale one.
-oc wait mcp/master --for=condition=Updated=true --timeout=15m
+oc get clusterimagepolicy
+watch oc get mcp #confirm
 
 # CONFIRM POLICY REACHED THE NODES
 WORKER=$(oc get nodes -l node-role.kubernetes.io/worker= -o jsonpath='{.items[0].metadata.name}')
 oc debug node/$WORKER -- chroot /host cat /etc/containers/policy.json | head -40
 
 # SIGNED IMAGE DEPLOYS CLEANLY
-oc -n globomantics-app run signed-test --image=quay.example.com/globomantics/payments-api:v2.0
-oc -n globomantics-app get pods #wait 15
+oc apply -f pod-signed-test.yaml
+oc -n globomantics-app get pods
 
 # UNSIGNED IMAGE FAILS AT PULL
-oc -n globomantics-app run unsigned-test --image=quay.example.com/globomantics/payments-api:v1.0
-oc -n globomantics-app get pods #wait 20
+oc apply -f pod-unsigned-test.yaml
+oc -n globomantics-app get pods
 
 # INVESTIGATE THE FAILURE
 oc -n globomantics-app describe pod unsigned-test
 oc -n globomantics-app get events --sort-by='.lastTimestamp' | tail -10 #wait 6
 
 # SWITCH TO A NAMESPACE-SCOPED IMAGEPOLICY
-oc delete clusterimagepolicy globomantics-signed-only #confirm
+oc delete clusterimagepolicy globomantics-signed-only
 cat globomantics-imagepolicy.yaml #wait 10
 oc apply -f globomantics-imagepolicy.yaml
 
 # WAIT FOR NAMESPACE-SCOPED ROLLOUT
-oc -n globomantics-app get imagepolicy #confirm
-# ImagePolicy also rolls out via MachineConfig — same wait pattern as the
-# cluster-scoped policy above.
-oc wait mcp/master --for=condition=Updated=true --timeout=15m
+oc -n globomantics-app get imagepolicy
+watch oc get mcp #confirm
 
 # VALIDATE SCOPE - LAUNCH UNSIGNED PODS IN BOTH NAMESPACES
-oc -n globomantics-app run unsigned-test-2 --image=quay.example.com/globomantics/payments-api:v1.0
-oc -n default run unsigned-default --image=quay.example.com/globomantics/payments-api:v1.0
-
-# CHECK BOTH NAMESPACES
-oc get pods -n globomantics-app #wait 20
-oc get pods -n default #wait 6
+oc delete pod unsigned-test -n globomantics-app
+oc apply -f pod-unsigned-test.yaml
+oc apply -f pod-unsigned-test-default.yaml
+oc get pods -n globomantics-app
+oc get pods -n default
 
 # TIME-LIMITED BREAK-GLASS
 oc create namespace globomantics-breakglass
-oc -n globomantics-breakglass run hotfix-test --image=quay.example.com/globomantics/payments-api:v1.0
-oc -n globomantics-breakglass get pods #wait 15
-# Label values can't contain ':', so the expiry timestamp goes on an annotation instead.
+oc apply -f pod-unsigned-hotfix.yaml
+oc -n globomantics-breakglass get pods #wait 5
 oc annotate namespace globomantics-breakglass globomantics.io/expires=2026-04-26T08:00:00Z
 
 # FINAL POSTURE VERIFICATION
-oc get clusterimagepolicy #wait 4
-oc get imagepolicy -A #wait 4
-oc get namespace globomantics-breakglass -o jsonpath='{.metadata.annotations}' #wait 4
+oc get clusterimagepolicy
+oc get imagepolicy -A
+oc get namespace globomantics-breakglass -o jsonpath='{.metadata.annotations}'

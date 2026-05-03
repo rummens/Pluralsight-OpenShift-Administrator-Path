@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unsigned-test-hotfix
+  namespace: globomantics-breakglass
+spec:
+  restartPolicy: Never
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: unsigned-test-hotfix
+      image: globomantics-quay-quay-quay-enterprise.apps.ocp-test.demo.rummens.de/globomantics/website:v1.0
+      imagePullPolicy: Always

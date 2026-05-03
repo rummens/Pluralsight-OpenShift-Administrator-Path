@@ -21,9 +21,17 @@ data:
           managed: true
           overrides:
             replicas: 1
+            # Clair indexer is CPU- and memory-hungry: it downloads every
+            # layer of every pushed image and runs language-package detectors
+            # on each. With 1 CPU / 2 GiB it pegs at 100% and the index_report
+            # POSTs from quay-app's secscan worker time out after 600 s, so
+            # the Quay UI shows "This manifest has not been indexed yet"
+            # indefinitely. 2 CPU / 4 GiB is Quay's canonical Clair sizing
+            # and matches what the upstream operator picks when no override
+            # is set.
             resources:
-              requests: {cpu: 500m, memory: 1Gi}
-              limits:   {cpu: "1",  memory: 2Gi}
+              requests: {cpu: 500m, memory: 2Gi}
+              limits:   {cpu: "2",  memory: 4Gi}
         - kind: clairpostgres
           managed: true
         - kind: postgres
@@ -56,8 +64,11 @@ data:
             # nginx, and the kubelet keeps killing the container. Halve the
             # worker counts and give it 6 GiB.
             env:
+              # Keep registry+secscan trimmed (those are background workers
+              # and don't need the full default), but leave WEB at the stock
+              # 4 so the UI stays snappy under interactive load.
               - name: WORKER_COUNT_WEB
-                value: "2"
+                value: "4"
               - name: WORKER_COUNT_REGISTRY
                 value: "4"
               - name: WORKER_COUNT_SECSCAN

@@ -2,27 +2,26 @@
 oc get nodes -o wide #wait 5
 oc get pods -n drain-demo -o wide #wait 5
 
-# BREAK NODE — STOP AND MASK KUBELET
-oc debug node/worker01 -- chroot /host bash -c "systemctl mask kubelet && systemctl stop kubelet" #wait 5
+# BREAK NODE — STOP AND MASK KUBELET chroot /host bash -c "systemctl stop kubelet"
+WORKER=$(oc get nodes -l node-role.kubernetes.io/worker= -o jsonpath='{.items[0].metadata.name}')
+oc debug node/$WORKER  #confirm
 
 # WATCH NODE GO NOTREADY
-oc get nodes -w #confirm
+watch oc get nodes #confirm
 
 # INVESTIGATE NODE CONDITIONS
-oc describe node worker01
+oc describe node $WORKER
 
 # CORDON AND DRAIN
-oc adm cordon worker01
-oc adm drain worker01 --ignore-daemonsets --delete-emptydir-data #wait 10
+oc adm cordon $WORKER
 oc get pods -n drain-demo -o wide #wait 5
 
 # RECOVER VIA SSH (KUBELET RESTART)
-# Note: substitute <worker01-ip> with the InternalIP captured in Prerequisites
-ssh core@<worker01-ip> "sudo systemctl unmask kubelet && sudo systemctl start kubelet"
+ssh -i $HOME/.ssh/id_ocp core@$WORKER_IP "sudo systemctl start kubelet"
 
 # WATCH RECOVERY
-oc get nodes -w #confirm
-oc adm uncordon worker01
+watch oc get nodes #confirm
+oc adm uncordon $WORKER
 oc get nodes #wait 5
 
 # POST-RECOVERY VALIDATION

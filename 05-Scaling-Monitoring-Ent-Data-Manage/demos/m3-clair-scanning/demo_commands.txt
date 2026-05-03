@@ -1,11 +1,10 @@
 # CONFIRM CLAIR IS UP AND MANAGED
-oc -n quay-enterprise get quayregistry #wait 6
-oc -n quay-enterprise get pods -l quay-component=clair-app #wait 6
-oc -n quay-enterprise get pods -l quay-component=clair-postgres #wait 6
+oc -n quay-enterprise get quayregistry
+oc -n quay-enterprise get pods -l quay-component=clair-app
+oc -n quay-enterprise get pods -l quay-component=clair-postgres
 
 # PUSH THE DELIBERATELY VULNERABLE IMAGE
-docker tag node:18.16 quay.example.com/globomantics/payments-api:v1.0
-docker push quay.example.com/globomantics/payments-api:v1.0 #wait 15
+docker push globomantics-quay-quay-quay-enterprise.apps.ocp-test.demo.rummens.de/globomantics/website:v1.0 #confirm
 
 # QUAY UI WALKTHROUGH (manual)
 # Browser -> globomantics -> payments-api -> Tags

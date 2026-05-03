@@ -1,0 +1,22 @@
+{{- if eq .Values.minio.scheme "https" }}
+# Exposes the MinIO S3 API externally so that Quay's pre-signed redirect URLs
+# resolve on cluster nodes (which use the external DNS, not cluster DNS).
+# Without this, kubelets cannot pull images because they cannot resolve
+# minio.minio.svc.cluster.local via their external DNS server.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: minio-api
+  namespace: minio
+spec:
+  host: {{ .Values.minio.host }}
+  port:
+    targetPort: api
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: minio
+    weight: 100
+{{- end }}
