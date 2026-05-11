@@ -4,6 +4,7 @@ tree .
 # --- Inspect base and prod overlay files ---
 cat base/deployment.yaml
 cat overlays/prod/replica-patch.yaml
+clear
 cat overlays/prod/kustomization.yaml
 
 # --- Render prod overlay, then apply ---

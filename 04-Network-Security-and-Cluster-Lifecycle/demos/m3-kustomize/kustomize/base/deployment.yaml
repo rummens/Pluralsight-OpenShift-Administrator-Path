@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: website
-          image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+          image: ghcr.io/rummens/pluralsight-globomantics-website:dev
           ports:
             - containerPort: 8080
 
