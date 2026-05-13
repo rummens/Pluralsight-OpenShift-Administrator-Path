@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.argocd.namespace }}
+  labels:
+    # Tells the cluster-default Argo CD instance (in openshift-gitops) NOT to
+    # try to manage this namespace — our own instance lives here.
+    argocd.argoproj.io/managed-by-cluster-argocd: "false"

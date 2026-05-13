@@ -1,0 +1,77 @@
+{{/*
+  Post-install hook. Sequencing intent:
+    1. Subscription + Namespace + RBAC + ConfigMap install in helm's normal
+       phase (no hook annotations). The Subscription kicks OLM into
+       installing the operator and registering the argocds.argoproj.io CRD.
+    2. This Job runs as a post-install/post-upgrade hook (weight 10) AFTER
+       those resources land. It polls until the CRD exists, then applies
+       the ArgoCD CR from the mounted ConfigMap, then waits until the
+       instance reports phase=Available.
+  Helm hook lifecycle: hook resources don't count toward `helm install --wait`
+  in the same way regular resources do, but with `--wait` helm DOES wait for
+  hook Jobs to complete, which is the gate we want.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argocd-bootstrap
+  namespace: {{ .Values.argocd.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: gitops-bootstrap
+      containers:
+        - name: bootstrap
+          image: {{ .Values.images.cli }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "▶ Waiting up to {{ .Values.crdWaitSeconds }}s for argocds.argoproj.io CRD..."
+              deadline=$(( $(date +%s) + {{ .Values.crdWaitSeconds }} ))
+              until kubectl get crd argocds.argoproj.io >/dev/null 2>&1; do
+                if [ "$(date +%s)" -ge "$deadline" ]; then
+                  echo "✗ CRD did not register before deadline — check Subscription:"
+                  echo "    oc -n openshift-operators get sub,csv,installplan"
+                  exit 1
+                fi
+                sleep 5
+              done
+              echo "✓ CRD registered."
+
+              echo "▶ Applying ArgoCD CR from mounted ConfigMap..."
+              kubectl apply -f /manifests/argocd.yaml
+              echo "✓ ArgoCD CR applied."
+
+              echo "▶ Waiting up to {{ .Values.instanceWaitSeconds }}s for ArgoCD/{{ .Values.argocd.name }} phase=Available..."
+              deadline=$(( $(date +%s) + {{ .Values.instanceWaitSeconds }} ))
+              while :; do
+                phase=$(kubectl -n {{ .Values.argocd.namespace }} get argocd {{ .Values.argocd.name }} \
+                  -o jsonpath='{.status.phase}' 2>/dev/null || true)
+                if [ "$phase" = "Available" ]; then
+                  echo "✓ ArgoCD instance is Available."
+                  break
+                fi
+                if [ "$(date +%s)" -ge "$deadline" ]; then
+                  echo "✗ ArgoCD instance did not become Available (last phase: ${phase:-<none>})"
+                  kubectl -n {{ .Values.argocd.namespace }} get argocd {{ .Values.argocd.name }} -o yaml || true
+                  exit 1
+                fi
+                echo "  …phase=${phase:-<pending>}, sleeping 10s"
+                sleep 10
+              done
+          volumeMounts:
+            - name: manifest
+              mountPath: /manifests
+      volumes:
+        - name: manifest
+          configMap:
+            name: argocd-instance-manifest

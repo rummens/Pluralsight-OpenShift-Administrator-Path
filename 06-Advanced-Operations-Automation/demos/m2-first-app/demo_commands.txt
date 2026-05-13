@@ -1,0 +1,24 @@
+# APPLY THE APPLICATION CR
+cat globomantics-web-app.yaml #wait 10
+oc apply -f globomantics-web-app.yaml
+
+# CLI STATUS — OUTOFSYNC + MISSING
+oc get application globomantics-web -n openshift-gitops #wait 6
+
+# (UI: open Argo CD → globomantics-web tile → SYNC → SYNCHRONIZE)
+
+# CLUSTER-SIDE VERIFICATION
+oc get all -n globomantics #wait 8
+oc get application globomantics-web -n openshift-gitops
+
+# EDIT GIT — SCALE TO 4 REPLICAS
+cd ~/git/Pluralsight-OpenShift-Administrator-Path
+sed -i 's/replicas: 2/replicas: 4/' 06-Advanced-Operations-Automation/demos/m2-first-app/apps/globomantics-web/deployment.yaml
+git commit -am "globomantics-web: scale to 4 replicas"
+git push origin main
+
+# (UI: REFRESH the tile → OutOfSync → SYNC → SYNCHRONIZE)
+
+# CONFIRM THE SCALE-UP LANDED
+oc get deployment globomantics-web -n globomantics
+oc get application globomantics-web -n openshift-gitops

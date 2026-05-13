@@ -1,0 +1,13 @@
+# Cleanup: roll the globomantics-web Application back to manual sync and restore the pruned ConfigMap in Git
+oc patch application globomantics-web -n openshift-gitops --type=merge \
+  -p '{"spec":{"syncPolicy":{"automated":null}}}' || true
+
+# Restore the configmap.yaml from Git history so Demo 5 can be re-run cleanly
+cd ~/git/Pluralsight-OpenShift-Administrator-Path
+git checkout HEAD~1 -- 06-Advanced-Operations-Automation/demos/m2-first-app/apps/globomantics-web/configmap.yaml || true
+git commit -am "globomantics-web: restore ConfigMap for next take" || true
+git push origin main || true
+
+# Trigger a sync so the cluster matches Git again
+oc patch application globomantics-web -n openshift-gitops --type=merge \
+  -p '{"operation":{"sync":{}}}' || true

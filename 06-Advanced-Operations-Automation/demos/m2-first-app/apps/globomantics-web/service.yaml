@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: globomantics-web
+  namespace: globomantics
+  labels:
+    app: globomantics-web
+spec:
+  selector:
+    app: globomantics-web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

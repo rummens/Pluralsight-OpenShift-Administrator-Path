@@ -1,0 +1,2 @@
+# Cleanup: nothing applied during the recording — this demo is read-only inspection.
+# Operator + default ArgoCD + globomantics-argocd are all prerequisites and stay in place.

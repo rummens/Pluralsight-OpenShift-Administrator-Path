@@ -1,0 +1,45 @@
+namespace: openshift-adp
+
+subscription:
+  channel: stable
+  name: redhat-oadp-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  # Pinned starting CSV — leave blank to take channel head
+  startingCSV: ""
+
+dpa:
+  name: velero-default
+  defaultPlugins:
+    - openshift
+    - aws
+    - csi
+  nodeAgent:
+    enable: true
+    uploaderType: kopia
+
+# MinIO-backed S3 BackupStorageLocation
+bsl:
+  bucket: velero
+  prefix: backups
+  region: minio
+  s3Url: https://minio-api.apps.ocp-test.demo.rummens.de
+  insecureSkipTLSVerify: true
+  s3ForcePathStyle: true
+  credentials:
+    # Plain AWS-style credentials file written into the cloud-credentials secret.
+    # MinIO accepts its root user/password as access-key/secret-key.
+    accessKey: root
+    secretKey: demo-secret-password-12345
+
+# Hook tuning
+hooks:
+  waitImage: registry.redhat.io/openshift4/ose-cli:latest
+  waitTimeoutSeconds: 300
+  # Bucket-init job hits MinIO directly via cluster service to ensure the
+  # bucket exists before the BackupStorageLocation tries to validate it.
+  bucketInit:
+    enabled: true
+    image: quay.io/minio/mc:latest
+    endpoint: http://minio.minio.svc:9000

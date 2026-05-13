@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: globomantics-web
+  namespace: globomantics
+  labels:
+    app: globomantics-web
+spec:
+  to:
+    kind: Service
+    name: globomantics-web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

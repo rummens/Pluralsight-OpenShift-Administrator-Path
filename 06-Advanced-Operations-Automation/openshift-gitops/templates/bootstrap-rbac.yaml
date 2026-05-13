@@ -1,0 +1,59 @@
+{{/*
+  RBAC for the post-install bootstrap Job. The Job needs to:
+    - get CRDs (to wait for argocds.argoproj.io to register)
+    - create/get/patch ArgoCD CRs in the target namespace
+    - get/list Jobs is implicit via SA on the namespace
+  Scoped narrowly: cluster-level read on CRDs only; full RW on ArgoCD CRs
+  is limited to .Values.argocd.namespace via a RoleBinding.
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitops-bootstrap
+  namespace: {{ .Values.argocd.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.argocd.namespace }}-gitops-bootstrap-crd-reader
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.argocd.namespace }}-gitops-bootstrap-crd-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.argocd.namespace }}-gitops-bootstrap-crd-reader
+subjects:
+  - kind: ServiceAccount
+    name: gitops-bootstrap
+    namespace: {{ .Values.argocd.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitops-bootstrap
+  namespace: {{ .Values.argocd.namespace }}
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["argocds"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-bootstrap
+  namespace: {{ .Values.argocd.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitops-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: gitops-bootstrap
+    namespace: {{ .Values.argocd.namespace }}

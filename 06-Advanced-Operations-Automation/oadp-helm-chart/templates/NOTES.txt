@@ -1,0 +1,13 @@
+OADP chart installed.
+
+Namespace:    {{ .Values.namespace }}
+Subscription: {{ .Values.subscription.name }} ({{ .Values.subscription.channel }})
+DPA:          {{ .Values.dpa.name }}
+BSL bucket:   {{ .Values.bsl.bucket }} @ {{ .Values.bsl.s3Url }}
+
+Verify:
+  oc -n {{ .Values.namespace }} get csv,sub,dpa,backupstoragelocation
+  velero -n {{ .Values.namespace }} backup-location get
+
+Create a test backup:
+  velero -n {{ .Values.namespace }} backup create demo --include-namespaces default --wait

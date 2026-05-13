@@ -1,0 +1,37 @@
+{{/*
+  ArgoCD CR shipped as a ConfigMap. The bootstrap Job mounts it and
+  `oc apply -f /manifests/argocd.yaml` once the CRD is registered.
+  Carrying it as a ConfigMap (not a regular template resource) avoids the
+  CRD-doesn't-exist-yet failure mode at helm-install time.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-instance-manifest
+  namespace: {{ .Values.argocd.namespace }}
+data:
+  argocd.yaml: |
+    apiVersion: argoproj.io/v1beta1
+    kind: ArgoCD
+    metadata:
+      name: {{ .Values.argocd.name }}
+      namespace: {{ .Values.argocd.namespace }}
+    spec:
+      server:
+        route:
+          enabled: {{ .Values.argocd.routeEnabled }}
+          tls:
+            termination: reencrypt
+            insecureEdgeTerminationPolicy: Redirect
+      sso:
+        provider: dex
+        dex:
+          openShiftOAuth: true
+      rbac:
+        defaultPolicy: 'role:readonly'
+        policy: |
+          g, system:cluster-admins, role:admin
+        scopes: '[groups]'
+      ha:
+        enabled: false
+      resourceTrackingMethod: annotation

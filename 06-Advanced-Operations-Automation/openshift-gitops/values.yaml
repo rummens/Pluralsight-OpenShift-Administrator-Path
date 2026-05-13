@@ -1,0 +1,31 @@
+operator:
+  # Subscription channel for openshift-gitops-operator. "latest" tracks the
+  # current GA stream; pin to e.g. "gitops-1.13" for reproducible demos.
+  channel: latest
+  installPlanApproval: Automatic
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+
+argocd:
+  # Name + namespace of the custom Argo CD instance the bootstrap Job creates.
+  # The operator also auto-creates a default instance in `openshift-gitops`;
+  # this chart adds a SECOND, isolated instance for demo/tenant scenarios.
+  name: globomantics-argocd
+  namespace: globomantics-gitops
+  # Expose the Argo CD server via an OpenShift Route (re-encrypt to the
+  # service's TLS). Flip to false for an in-cluster-only instance.
+  routeEnabled: true
+
+images:
+  # Used by the bootstrap Job — needs `oc` / `kubectl`.
+  cli: quay.io/openshift/origin-cli:latest
+
+# Seconds the bootstrap Job waits for argocds.argoproj.io CRD to register
+# after the Subscription is applied. The operator publishes the CRD ~30-90s
+# after the InstallPlan completes; 600s leaves slack for slow marketplaces.
+crdWaitSeconds: 600
+
+# Seconds the bootstrap Job waits for the ArgoCD CR to report
+# .status.phase == Available after `oc apply`. Operator typically rolls out
+# the application-controller, repo-server, redis, and server in ~3-5 min.
+instanceWaitSeconds: 900

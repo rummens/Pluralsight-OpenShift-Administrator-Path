@@ -1,0 +1,18 @@
+# Cleanup: tear down the ApplicationSet, its generated Applications, the per-env namespaces, and the on-camera Git/RBAC artifacts
+oc delete applicationset globomantics-web-envs -n openshift-gitops --ignore-not-found
+oc delete application globomantics-web-dev globomantics-web-staging globomantics-web-prod globomantics-web-qa -n openshift-gitops --ignore-not-found
+oc delete namespace globomantics-dev globomantics-staging globomantics-prod globomantics-qa --ignore-not-found #wait 15
+
+# Drop the cluster-admin binding we created live
+oc delete clusterrolebinding gitops-cluster-admin --ignore-not-found
+
+# Drop the cluster-scoped RBAC the prod overlay shipped
+oc delete clusterrolebinding globomantics-namespace-viewer --ignore-not-found
+oc delete clusterrole globomantics-namespace-viewer --ignore-not-found
+
+# Remove the QA overlay we added on camera so the next take starts from three environments
+cd ~/git/Pluralsight-OpenShift-Administrator-Path
+rm -rf 06-Advanced-Operations-Automation/demos/m2-applicationsets/environments/qa
+git add -A 06-Advanced-Operations-Automation/demos/m2-applicationsets/environments/qa
+git commit -m "globomantics-web: drop QA environment for next take" || true
+git push origin main || true

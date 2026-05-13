@@ -1,0 +1,6 @@
+apiVersion: v2
+name: openshift-gitops
+description: OpenShift GitOps operator + a custom Argo CD instance, sequenced via Helm hooks (Subscription first, then a bootstrap Job waits for the CRD and applies the ArgoCD CR).
+type: application
+version: 0.1.0
+appVersion: "1.13"

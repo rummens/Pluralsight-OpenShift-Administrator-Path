@@ -1,0 +1,37 @@
+{{- if .Values.hooks.bucketInit.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oadp-init-bucket
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oadp.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: mc
+          image: {{ .Values.hooks.bucketInit.image }}
+          env:
+            - name: MC_CONFIG_DIR
+              value: /tmp/mc
+            - name: HOME
+              value: /tmp
+            - name: MC_HOST_minio
+              value: http://{{ .Values.bsl.credentials.accessKey }}:{{ .Values.bsl.credentials.secretKey }}@{{ trimPrefix "http://" (trimPrefix "https://" .Values.hooks.bucketInit.endpoint) }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              echo "Ensuring bucket '{{ .Values.bsl.bucket }}' exists ..."
+              mc mb --ignore-existing minio/{{ .Values.bsl.bucket }}
+              mc ls minio/{{ .Values.bsl.bucket }} || true
+              echo "Bucket ready."
+{{- end }}

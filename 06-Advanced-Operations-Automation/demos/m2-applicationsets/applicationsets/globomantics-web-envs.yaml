@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: globomantics-web-envs
+  namespace: openshift-gitops
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/rummens/Pluralsight-OpenShift-Administrator-Path
+        revision: main
+        directories:
+          - path: 06-Advanced-Operations-Automation/demos/m2-applicationsets/environments/*
+  template:
+    metadata:
+      name: 'globomantics-web-{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/rummens/Pluralsight-OpenShift-Administrator-Path
+        path: '{{path}}'
+        targetRevision: main
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'globomantics-{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

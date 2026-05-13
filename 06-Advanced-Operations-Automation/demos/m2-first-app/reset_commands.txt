@@ -1,0 +1,9 @@
+# Cleanup: remove the Application CR, the synced workload namespace, and revert the Git replica bump
+oc delete application globomantics-web -n openshift-gitops --ignore-not-found
+oc delete namespace globomantics --ignore-not-found #wait 10
+
+# Revert the on-camera sed bump so the next take starts from replicas: 2
+cd ~/git/Pluralsight-OpenShift-Administrator-Path
+sed -i 's/replicas: 4/replicas: 2/' 06-Advanced-Operations-Automation/demos/m2-first-app/apps/globomantics-web/deployment.yaml
+git commit -am "globomantics-web: reset replicas to 2 for next take" || true
+git push origin main || true

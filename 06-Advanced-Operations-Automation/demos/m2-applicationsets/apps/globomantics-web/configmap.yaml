@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: globomantics-web-config
+data:
+  site.env: |
+    SITE_NAME=Globomantics
+    SITE_TAGLINE=Aerospace, simplified.

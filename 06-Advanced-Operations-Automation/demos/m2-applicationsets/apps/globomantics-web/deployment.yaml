@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globomantics-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: globomantics-web
+  template:
+    metadata:
+      labels:
+        app: globomantics-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi

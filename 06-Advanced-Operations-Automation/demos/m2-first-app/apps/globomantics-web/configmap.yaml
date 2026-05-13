@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: globomantics-web-config
+  namespace: globomantics
+  labels:
+    app: globomantics-web
+data:
+  site.env: |
+    SITE_NAME=Globomantics
+    SITE_TAGLINE=Aerospace, simplified.

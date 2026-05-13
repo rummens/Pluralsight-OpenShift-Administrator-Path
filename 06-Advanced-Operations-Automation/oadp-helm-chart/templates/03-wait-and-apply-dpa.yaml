@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: oadp-install-wait
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oadp-install-wait-{{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: oadp-install-wait
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oadp-dpa-manifest
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  dpa.yaml: |
+    apiVersion: oadp.openshift.io/v1alpha1
+    kind: DataProtectionApplication
+    metadata:
+      name: {{ .Values.dpa.name }}
+      namespace: {{ .Values.namespace }}
+    spec:
+      configuration:
+        velero:
+          defaultPlugins:
+            {{- range .Values.dpa.defaultPlugins }}
+            - {{ . }}
+            {{- end }}
+        nodeAgent:
+          enable: {{ .Values.dpa.nodeAgent.enable }}
+          uploaderType: {{ .Values.dpa.nodeAgent.uploaderType }}
+      backupLocations:
+        - velero:
+            provider: aws
+            default: true
+            objectStorage:
+              bucket: {{ .Values.bsl.bucket }}
+              prefix: {{ .Values.bsl.prefix }}
+            config:
+              region: {{ .Values.bsl.region }}
+              s3Url: {{ .Values.bsl.s3Url }}
+              s3ForcePathStyle: "{{ .Values.bsl.s3ForcePathStyle }}"
+              insecureSkipTLSVerify: "{{ .Values.bsl.insecureSkipTLSVerify }}"
+            credential:
+              name: cloud-credentials
+              key: cloud
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oadp-wait-and-apply-dpa
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oadp.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: oadp-install-wait
+      restartPolicy: Never
+      volumes:
+        - name: dpa
+          configMap:
+            name: oadp-dpa-manifest
+      containers:
+        - name: wait-apply
+          image: {{ .Values.hooks.waitImage }}
+          volumeMounts:
+            - name: dpa
+              mountPath: /manifests
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              echo "Waiting for OADP CRD dataprotectionapplications.oadp.openshift.io ..."
+              end=$(( $(date +%s) + {{ .Values.hooks.waitTimeoutSeconds }} ))
+              until oc get crd dataprotectionapplications.oadp.openshift.io >/dev/null 2>&1; do
+                [ "$(date +%s)" -ge "$end" ] && { echo "timeout waiting for CRD"; exit 1; }
+                sleep 5
+              done
+              oc wait --for=condition=Established \
+                crd/dataprotectionapplications.oadp.openshift.io \
+                --timeout={{ .Values.hooks.waitTimeoutSeconds }}s
+
+              echo "Waiting for OADP CSV to Succeeded in {{ .Values.namespace }} ..."
+              while [ "$(date +%s)" -lt "$end" ]; do
+                phase=$(oc -n {{ .Values.namespace }} get csv \
+                  -o jsonpath='{.items[?(@.spec.displayName=="OADP Operator")].status.phase}' 2>/dev/null || true)
+                echo "CSV phase: ${phase:-<none>}"
+                [ "$phase" = "Succeeded" ] && break
+                sleep 5
+              done
+              [ "$phase" = "Succeeded" ] || { echo "CSV did not reach Succeeded"; exit 1; }
+
+              echo "Applying DataProtectionApplication ..."
+              oc apply -f /manifests/dpa.yaml
+              echo "Done."
