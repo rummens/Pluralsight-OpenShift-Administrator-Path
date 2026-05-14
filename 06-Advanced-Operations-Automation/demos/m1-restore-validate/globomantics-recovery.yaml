@@ -1,0 +1,10 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: globomantics-recovery
+  namespace: openshift-adp
+spec:
+  backupName: globomantics-manual-001
+  includedNamespaces:
+    - globomantics
+  restorePVs: true

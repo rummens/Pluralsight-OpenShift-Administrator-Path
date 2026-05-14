@@ -1,4 +1,14 @@
+# This namespace is normally provisioned by the openshift-gitops Helm chart
+# under ../../openshift-gitops/. The setup/ folder here is a standalone
+# applyable record of the prerequisite so the demo can be re-staged without
+# the chart.
+#
+# The label tells the cluster-default Argo CD instance (in openshift-gitops)
+# NOT to try to manage this namespace — our second instance lives here and
+# manages itself.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: globomantics-argocd
+  name: globomantics-gitops
+  labels:
+    argocd.argoproj.io/managed-by-cluster-argocd: "false"

@@ -1,0 +1,81 @@
+# Demo setup helper: waits for the canary-init Job to finish populating the
+# products table, then creates the globomantics-manual-001 Backup that the
+# restore-validate manifests reference. Without this, the demo depends on
+# globomantics-manual-001 surviving the previous demo's reset — which it
+# does not. This Job makes m1-restore-validate self-contained.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: take-baseline-backup
+  namespace: openshift-adp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: take-baseline-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: take-baseline-backup
+    namespace: openshift-adp
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: take-baseline-backup
+  namespace: openshift-adp
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: take-baseline-backup
+      restartPolicy: Never
+      containers:
+        - name: backup
+          image: registry.redhat.io/openshift4/ose-cli:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+
+              echo "Waiting for db-canary-init Job in globomantics to complete..."
+              oc -n globomantics wait --for=condition=complete \
+                job/db-canary-init --timeout=300s
+
+              echo "Creating globomantics-manual-001 Backup..."
+              cat <<'EOF' | oc apply -f -
+              apiVersion: velero.io/v1
+              kind: Backup
+              metadata:
+                name: globomantics-manual-001
+                namespace: openshift-adp
+              spec:
+                includedNamespaces:
+                  - globomantics
+                # Kopia file-system backup via node-agent. Matches the approach
+                # used by globomantics-nightly so the restore-validate demo
+                # operates on the same backup strategy users will recognise.
+                defaultVolumesToFsBackup: true
+                storageLocation: dpa-minio-1
+                ttl: 720h0m0s
+              EOF
+
+              echo "Waiting for Backup to reach a terminal phase..."
+              end=$(( $(date +%s) + 600 ))
+              while [ "$(date +%s)" -lt "$end" ]; do
+                ph=$(oc -n openshift-adp get backup globomantics-manual-001 \
+                  -o jsonpath='{.status.phase}' 2>/dev/null || true)
+                echo "phase=${ph:-<none>}"
+                case "$ph" in
+                  Completed)              echo "Baseline backup ready."; exit 0 ;;
+                  PartiallyFailed|Failed|FailedValidation)
+                                          echo "Baseline backup ${ph}."; exit 1 ;;
+                esac
+                sleep 5
+              done
+              echo "Timed out waiting for Backup."
+              exit 1

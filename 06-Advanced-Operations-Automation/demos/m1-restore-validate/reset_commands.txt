@@ -1,0 +1,21 @@
+# Delete the three Restore CRs from the take
+oc delete restore globomantics-recovery globomantics-db-only globomantics-stuck-demo -n openshift-adp --ignore-not-found
+
+# Drop the baseline Backup CR and the helper that creates it. The setup
+# Job is immutable once Completed, so it must be deleted before the next
+# 'manage-labs.sh -s m1-restore-validate' run can re-apply it.
+oc delete backup globomantics-manual-001 -n openshift-adp --ignore-not-found
+oc delete job take-baseline-backup -n openshift-adp --ignore-not-found
+oc delete sa take-baseline-backup -n openshift-adp --ignore-not-found
+oc delete clusterrolebinding take-baseline-backup --ignore-not-found
+
+# Drop the restored namespaces
+oc delete namespace globomantics --ignore-not-found #wait 20
+oc delete namespace globomantics-restore --ignore-not-found #wait 20
+oc delete namespace globomantics-stuck --ignore-not-found #wait 20
+
+# Make sure velero is scaled back to 1 in case the disaster sim left it at 0
+oc scale deployment velero -n openshift-adp --replicas=1
+
+# Wipe the bucket prefix so the next take starts clean
+oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/oadp-backups/globomantics/' || true

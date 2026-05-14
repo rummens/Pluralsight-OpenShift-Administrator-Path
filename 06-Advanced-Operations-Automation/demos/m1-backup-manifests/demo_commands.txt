@@ -1,0 +1,42 @@
+# BASELINE — WHAT LIVES IN THE NAMESPACE
+oc get all -n globomantics
+oc get cm,secret -n globomantics
+oc get pods -n globomantics --show-labels | head -5
+
+# FULL-NAMESPACE BACKUP
+cat globomantics-full-backup.yaml #wait 10
+oc apply -f globomantics-full-backup.yaml
+
+# WATCH THE BACKUP COMPLETE
+watch oc get backup globomantics-full -n openshift-adp #confirm
+
+# DESCRIBE AND TAIL THE BACKUP LOG
+velero backup describe globomantics-full -n openshift-adp --details
+velero backup logs globomantics-full -n openshift-adp | head -40
+
+# VERIFY THE ARTEFACT LANDED IN MINIO
+# The mc 'local' alias on the pod ships without credentials; prime it from
+# the running container's env vars before the first list.
+oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls local/oadp-backups/globomantics/backups/globomantics-full/'
+
+# WHAT VELERO EXCLUDES BY DEFAULT
+velero backup describe globomantics-full -n openshift-adp --details | grep -A2 "Resource List"
+
+# LABEL-SCOPED BACKUP
+cat globomantics-prod-only-backup.yaml #wait 10
+oc apply -f globomantics-prod-only-backup.yaml
+
+# CONFIRM STAGING WAS FILTERED OUT
+watch oc get backup globomantics-prod-only -n openshift-adp #confirm
+velero backup describe globomantics-prod-only -n openshift-adp --details | grep "Items"
+
+# IMPERATIVE PATH VIA VELERO CLI
+velero backup create globomantics-cli-demo --include-namespaces=globomantics --ttl=24h0m0s -n openshift-adp
+oc get backup globomantics-cli-demo -n openshift-adp -o yaml | head -25
+
+# TROUBLESHOOTING WALKTHROUGH — READ-ONLY
+velero backup describe globomantics-full -n openshift-adp --details
+velero backup logs globomantics-full -n openshift-adp | grep -iE "error|warn"
+
+# FINAL INVENTORY
+oc get backup -n openshift-adp

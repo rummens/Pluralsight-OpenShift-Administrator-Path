@@ -13,5 +13,15 @@ spec:
     server: https://kubernetes.default.svc
     namespace: globomantics
   syncPolicy:
+    # Label the target namespace at creation so the OpenShift GitOps operator
+    # provisions the per-namespace RoleBindings that let the cluster-default
+    # Argo CD instance write Deployment/Service/Route in `globomantics`.
+    # Without this, the application-controller's ClusterRole grants read on
+    # everything but write only on a narrow set (namespaces, PVCs, RBAC,
+    # ConfigMaps) — first sync fails with "services is forbidden / deployments
+    # is forbidden / routes is forbidden".
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: openshift-gitops
     syncOptions:
       - CreateNamespace=true

@@ -1,0 +1,26 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: globomantics-db-only
+  namespace: openshift-adp
+spec:
+  backupName: globomantics-manual-001
+  includedNamespaces:
+    - globomantics
+  # Manifest-only partial restore into a side namespace — useful for
+  # inspecting what was in the backup without touching production data.
+  # Note: persistentvolumeclaims are deliberately excluded. Velero 1.16
+  # (OADP 1.5.x) does not create a PodVolumeRestore for FS-backed PVCs
+  # when namespaceMapping is in effect, so the mapped PVC would bind
+  # empty and the db pod would stay Pending. For full data recovery,
+  # see the previous globomantics-recovery Restore.
+  includedResources:
+    - deployments.apps
+    - services
+    - configmaps
+    - secrets
+  labelSelector:
+    matchLabels:
+      app: db
+  namespaceMapping:
+    globomantics: globomantics-restore

@@ -1,0 +1,66 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: oadp-velero-alerts
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oadp.labels" . | nindent 4 }}
+    role: alert-rules
+spec:
+  groups:
+    - name: oadp-velero.rules
+      rules:
+        # Any backup that finished as Failed in the recent window.
+        - alert: VeleroBackupFailed
+          expr: increase(velero_backup_failure_total[{{ .Values.prometheusRule.failureWindow }}]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            component: oadp
+          annotations:
+            summary: "Velero backup failed in the last {{ .Values.prometheusRule.failureWindow }}"
+            description: |
+              At least one Velero backup completed with phase=Failed in the last {{ .Values.prometheusRule.failureWindow }}.
+              Inspect with: oc -n {{ .Values.namespace }} get backup
+              Then: velero -n {{ .Values.namespace }} backup describe <name> --details
+
+        # Backups that finished but skipped some items.
+        - alert: VeleroBackupPartialFailure
+          expr: increase(velero_backup_partial_failure_total[{{ .Values.prometheusRule.failureWindow }}]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: oadp
+          annotations:
+            summary: "Velero backup partially failed"
+            description: |
+              At least one Velero backup completed with phase=PartiallyFailed in the last {{ .Values.prometheusRule.failureWindow }}.
+              Some items were skipped. Inspect the backup logs to determine what was missed.
+
+        # A Schedule that has not produced a successful Backup recently.
+        - alert: VeleroNoSuccessfulBackup
+          expr: time() - max by (schedule) (velero_backup_last_successful_timestamp) > {{ .Values.prometheusRule.noSuccessWindow | replace "h" "" | int64 | mul 3600 }}
+          for: 15m
+          labels:
+            severity: warning
+            component: oadp
+          annotations:
+            summary: "No successful Velero backup for schedule {{ "{{" }} $labels.schedule {{ "}}" }} in {{ .Values.prometheusRule.noSuccessWindow }}"
+            description: |
+              Schedule {{ "{{" }} $labels.schedule {{ "}}" }} has not produced a successful backup for over {{ .Values.prometheusRule.noSuccessWindow }}.
+              Either the cron expression is wrong, the BackupStorageLocation is broken, or the source workloads were removed.
+
+        # CSI snapshots that failed (only meaningful when snapshotVolumes: true is used).
+        - alert: VeleroVolumeSnapshotFailed
+          expr: increase(velero_volume_snapshot_failure_total[{{ .Values.prometheusRule.failureWindow }}]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: oadp
+          annotations:
+            summary: "Velero CSI volume snapshot failed"
+            description: |
+              At least one CSI VolumeSnapshot taken by Velero failed in the last {{ .Values.prometheusRule.failureWindow }}.
+              The Backup CR may be PartiallyFailed even if the manifest portion succeeded.
+{{- end }}

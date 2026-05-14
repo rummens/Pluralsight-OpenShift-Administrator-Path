@@ -1,0 +1,8 @@
+# Delete the three backups produced during the take
+oc delete backup globomantics-full globomantics-prod-only globomantics-cli-demo -n openshift-adp --ignore-not-found
+
+# Wipe the bucket prefix so the next take starts clean
+oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/oadp-backups/globomantics/' || true
+
+# Reset the app namespaces (the operator namespace stays intact)
+oc delete namespace globomantics globomantics-staging --ignore-not-found #wait 20

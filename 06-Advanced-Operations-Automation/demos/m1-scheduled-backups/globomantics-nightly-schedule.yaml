@@ -1,0 +1,16 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: globomantics-nightly
+  namespace: openshift-adp
+spec:
+  schedule: "0 2 * * *"
+  template:
+    includedNamespaces:
+      - globomantics
+    # Use Kopia file-system backup via node-agent rather than CSI snapshots.
+    # CSI snapshot restore on nfs.csi.k8s.io drops original file ownership,
+    # which breaks the postgres-13 entrypoint on the restored pod.
+    defaultVolumesToFsBackup: true
+    storageLocation: dpa-minio-1
+    ttl: 720h0m0s

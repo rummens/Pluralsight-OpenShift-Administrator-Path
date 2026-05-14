@@ -1,0 +1,12 @@
+# Remove the OADP operator install (DPA, Subscription, CSV, OperatorGroup)
+oc delete dpa --all -n openshift-adp --ignore-not-found
+oc delete subscription redhat-oadp-operator -n openshift-adp --ignore-not-found
+oc delete csv -l operators.coreos.com/redhat-oadp-operator.openshift-adp -n openshift-adp --ignore-not-found
+oc delete operatorgroup openshift-adp -n openshift-adp --ignore-not-found
+oc delete secret cloud-credentials -n openshift-adp --ignore-not-found
+
+# Drop the operator namespace last (deletes any remaining velero/nodeagent pods)
+oc delete namespace openshift-adp --ignore-not-found #wait 30
+
+# Empty the MinIO bucket so the next run starts clean
+oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/oadp-backups/globomantics/' || true

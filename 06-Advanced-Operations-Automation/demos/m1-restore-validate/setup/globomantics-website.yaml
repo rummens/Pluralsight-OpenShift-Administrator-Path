@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globomantics-website
+  namespace: globomantics
+  labels:
+    app: globomantics-website
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globomantics-website
+  template:
+    metadata:
+      labels:
+        app: globomantics-website
+        env: prod
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: globomantics-website
+  namespace: globomantics
+  labels:
+    app: globomantics-website
+    env: prod
+spec:
+  selector:
+    app: globomantics-website
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: globomantics-website
+  namespace: globomantics
+  labels:
+    app: globomantics-website
+    env: prod
+spec:
+  to:
+    kind: Service
+    name: globomantics-website
+  port:
+    targetPort: http

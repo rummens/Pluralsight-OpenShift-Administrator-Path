@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-canary-init
+  namespace: globomantics
+  labels:
+    app: db
+    env: prod
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: db-canary-init
+        env: prod
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: psql
+          image: quay.io/sclorg/postgresql-13-c9s:latest
+          env:
+            - name: PGPASSWORD
+              value: postgres
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Waiting for db service to accept connections..."
+              for i in $(seq 1 60); do
+                if pg_isready -h db -p 5432 -U postgres >/dev/null 2>&1; then
+                  echo "db is ready"
+                  break
+                fi
+                sleep 3
+              done
+              psql -h db -U postgres -d globomantics -c "CREATE TABLE IF NOT EXISTS products (name text PRIMARY KEY);"
+              psql -h db -U postgres -d globomantics -c "INSERT INTO products(name) VALUES ('globomantics-widget-pro') ON CONFLICT DO NOTHING;"
+              psql -h db -U postgres -d globomantics -c "SELECT name FROM products;"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi

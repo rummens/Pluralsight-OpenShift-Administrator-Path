@@ -1,0 +1,38 @@
+# BASELINE — APP, DB AND HOOK ANNOTATIONS
+oc get all,pvc -n globomantics
+oc get pod -l app=db -n globomantics -o jsonpath='{.items[0].metadata.annotations}' | jq .
+
+# APPLY THE SCHEDULE
+cat globomantics-nightly-schedule.yaml #wait 10
+oc apply -f globomantics-nightly-schedule.yaml
+
+# CONFIRM THE SCHEDULE REGISTERED
+oc get schedule -n openshift-adp
+
+# INSPECT VIA THE VELERO CLI
+velero schedule describe globomantics-nightly -n openshift-adp
+
+# TRIGGER AN ON-DEMAND RUN FROM THE SCHEDULE
+velero backup create globomantics-manual-001 --from-schedule=globomantics-nightly -n openshift-adp
+oc get backup -n openshift-adp -l velero.io/schedule-name=globomantics-nightly
+
+# WATCH THE RUN COMPLETE
+watch oc get backup globomantics-manual-001 -n openshift-adp #confirm
+
+# CONFIRM HOOKS FIRED
+velero backup describe globomantics-manual-001 -n openshift-adp --details | grep -A5 "Hooks"
+velero backup logs globomantics-manual-001 -n openshift-adp | grep -i hook
+
+# VERIFY TTL AND EXPIRATION
+oc get backup globomantics-manual-001 -n openshift-adp -o yaml | grep -E "ttl:|expiration:"
+
+# INSPECT THE BUNDLED ALERTING RULES
+# The helm chart deploys a PrometheusRule with sensible Velero alerts
+# (BackupFailed, BackupPartialFailure, NoSuccessfulBackup, VolumeSnapshotFailed).
+# Whether they fire depends on a Prometheus instance scraping the
+# openshift-adp-velero-metrics-svc Service on port 8085.
+oc get prometheusrules -n openshift-adp
+oc describe prometheusrule oadp-velero-alerts -n openshift-adp | head -40
+
+# FINAL INVENTORY
+oc get schedule,backup -n openshift-adp

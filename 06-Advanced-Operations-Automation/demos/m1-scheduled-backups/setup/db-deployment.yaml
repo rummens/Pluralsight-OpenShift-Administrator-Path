@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-data
+  namespace: globomantics
+  labels:
+    app: db
+    env: prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-storage
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: globomantics
+  labels:
+    app: db
+    env: prod
+spec:
+  selector:
+    app: db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: globomantics
+  labels:
+    app: db
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: db
+        env: prod
+      annotations:
+        pre.hook.backup.velero.io/command: '["/bin/bash","-c","psql -U postgres -c \"SELECT pg_start_backup(''velero'');\""]'
+        post.hook.backup.velero.io/command: '["/bin/bash","-c","psql -U postgres -c \"SELECT pg_stop_backup();\""]'
+    spec:
+      containers:
+        - name: postgres
+          image: quay.io/sclorg/postgresql-13-c9s:latest
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRESQL_USER
+              value: app
+            - name: POSTGRESQL_PASSWORD
+              value: app
+            - name: POSTGRESQL_DATABASE
+              value: globomantics
+            - name: POSTGRESQL_ADMIN_PASSWORD
+              value: postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: db-data

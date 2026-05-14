@@ -1,0 +1,63 @@
+# PRE-DISASTER BASELINE
+oc get all,pvc -n globomantics
+oc get route -n globomantics -o jsonpath='{.items[0].spec.host}{"\n"}'
+oc exec -n globomantics deploy/db -- psql -U postgres -d globomantics -c "SELECT name FROM products LIMIT 5;"
+
+# SIMULATE DISASTER — DELETE THE NAMESPACE
+oc delete namespace globomantics #wait 15
+oc get namespace globomantics 2>/dev/null || echo "globomantics namespace is gone"
+
+# CONFIRM THE BACKUP IS STILL AVAILABLE
+oc get backup globomantics-manual-001 -n openshift-adp
+velero backup describe globomantics-manual-001 -n openshift-adp | grep -E "Phase|Errors|Volume Snapshots"
+
+# APPLY THE FULL-NAMESPACE RESTORE
+cat globomantics-recovery.yaml #wait 10
+oc apply -f globomantics-recovery.yaml
+
+# WATCH THE RESTORE COMPLETE
+watch oc get restore globomantics-recovery -n openshift-adp #confirm
+
+# VALIDATE AGAINST THE BASELINE
+oc get all,pvc -n globomantics
+oc get pod -n globomantics -o jsonpath='{.items[*].status.phase}' ; echo
+curl -sI http://$(oc get route -n globomantics -o jsonpath='{.items[0].spec.host}') | head -1
+oc exec -n globomantics deploy/db -- psql -U postgres -d globomantics -c "SELECT name FROM products LIMIT 5;"
+
+# PARTIAL RESTORE INTO A SIDE NAMESPACE
+# Manifest-only restore for inspection. PVCs are deliberately excluded —
+# see globomantics-db-only.yaml for why.
+cat globomantics-db-only.yaml #wait 10
+oc apply -f globomantics-db-only.yaml
+
+# WATCH THE PARTIAL RESTORE
+watch oc get restore globomantics-db-only -n openshift-adp #confirm
+
+# VERIFY THE SIDE NAMESPACE - manifests are present; the db Pod stays
+# Pending because we did not restore its PVC. That is the intent.
+oc get deploy,svc,cm,secret -n globomantics-restore
+oc get pod -n globomantics-restore
+
+# APPLY THE STUCK-RESTORE MANIFEST
+cat globomantics-stuck-demo.yaml #wait 10
+oc apply -f globomantics-stuck-demo.yaml
+
+# SIMULATE VELERO CRASHLOOP — SCALE TO ZERO
+oc scale deployment velero -n openshift-adp --replicas=0 #wait 5
+
+# INVESTIGATE THE STUCK RESTORE
+oc get restore -n openshift-adp
+velero restore describe globomantics-stuck-demo -n openshift-adp --details
+
+# CONFIRM ZERO VELERO PODS
+oc get pods -n openshift-adp
+
+# RECOVER — SCALE VELERO BACK UP
+oc scale deployment velero -n openshift-adp --replicas=1
+watch oc get pods -n openshift-adp -l app.kubernetes.io/name=velero #confirm
+
+# WAIT FOR THE RESTORE TO RECONCILE
+watch oc get restore globomantics-stuck-demo -n openshift-adp #confirm
+
+# FINAL INVENTORY
+oc get restore -n openshift-adp

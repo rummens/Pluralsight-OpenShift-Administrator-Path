@@ -1,12 +1,30 @@
+# Second Argo CD instance, deployed alongside the operator-managed default
+# in `openshift-gitops`. The Helm chart at ../../openshift-gitops/ is the
+# usual installer; this file mirrors that chart's rendered output so the
+# demo can be re-staged with `oc apply -f setup/` if the chart isn't used.
+#
+# Notes:
+# - `system:cluster-admins` is the OpenShift cluster admin group as seen by
+#   Argo CD's Dex/OpenShift SSO integration; mapping it to `role:admin`
+#   gives cluster-admin users full rights inside this Argo CD instance.
+# - `resourceTrackingMethod: annotation` switches from the default label-
+#   based tracking to annotation-based, which avoids cluttering managed
+#   resources with `app.kubernetes.io/instance` labels they didn't ship with.
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: globomantics-argocd
-  namespace: globomantics-argocd
+  namespace: globomantics-gitops
 spec:
+  ha:
+    enabled: false
+  resourceTrackingMethod: annotation
   server:
     route:
       enabled: true
+      tls:
+        insecureEdgeTerminationPolicy: Redirect
+        termination: reencrypt
   sso:
     provider: dex
     dex:
@@ -14,5 +32,5 @@ spec:
   rbac:
     defaultPolicy: 'role:readonly'
     policy: |
-      g, cluster-admins, role:admin
+      g, system:cluster-admins, role:admin
     scopes: '[groups]'

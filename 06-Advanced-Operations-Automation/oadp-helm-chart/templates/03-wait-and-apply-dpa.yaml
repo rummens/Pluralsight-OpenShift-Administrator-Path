@@ -66,6 +66,12 @@ data:
             credential:
               name: cloud-credentials
               key: cloud
+      snapshotLocations:
+        - velero:
+            provider: aws
+            config:
+              region: {{ .Values.dpa.snapshotLocation.region }}
+              profile: {{ .Values.dpa.snapshotLocation.profile }}
 ---
 apiVersion: batch/v1
 kind: Job

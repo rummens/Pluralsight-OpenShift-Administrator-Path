@@ -1,0 +1,9 @@
+# Remove the Schedule and the on-demand Backup it produced
+oc delete schedule globomantics-nightly -n openshift-adp --ignore-not-found
+oc delete backup globomantics-manual-001 -n openshift-adp --ignore-not-found
+
+# Clean the bucket prefix
+oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/oadp-backups/globomantics/' || true
+
+# Reset the app namespace (operator namespace stays intact for Demo 7)
+oc delete namespace globomantics --ignore-not-found #wait 20

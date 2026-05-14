@@ -1,0 +1,12 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: globomantics-stuck-demo
+  namespace: openshift-adp
+spec:
+  backupName: globomantics-manual-001
+  includedNamespaces:
+    - globomantics
+  namespaceMapping:
+    globomantics: globomantics-stuck
+  restorePVs: true

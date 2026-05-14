@@ -10,7 +10,8 @@ subscription:
   startingCSV: ""
 
 dpa:
-  name: velero-default
+  # Name matches the BSL the demos reference as dpa-minio-1
+  name: dpa-minio
   defaultPlugins:
     - openshift
     - aws
@@ -18,18 +19,23 @@ dpa:
   nodeAgent:
     enable: true
     uploaderType: kopia
+  # Snapshot location is required for the CSI VolumeSnapshot path used
+  # by the PV-backup and restore demos (Clip 5 / 6 / 7).
+  snapshotLocation:
+    region: minio
+    profile: default
 
 # MinIO-backed S3 BackupStorageLocation
 bsl:
-  bucket: velero
-  prefix: backups
+  bucket: oadp-backups
+  prefix: globomantics
   region: minio
-  s3Url: https://minio-api.apps.ocp-test.demo.rummens.de
+  s3Url: http://minio.minio.svc:9000
   insecureSkipTLSVerify: true
   s3ForcePathStyle: true
   credentials:
     # Plain AWS-style credentials file written into the cloud-credentials secret.
-    # MinIO accepts its root user/password as access-key/secret-key.
+    # MinIO root user is the access-key/secret-key in this lab.
     accessKey: root
     secretKey: demo-secret-password-12345
 
@@ -43,3 +49,15 @@ hooks:
     enabled: true
     image: quay.io/minio/mc:latest
     endpoint: http://minio.minio.svc:9000
+
+# Prometheus alerting rules for OADP/Velero. OADP 1.5 ships no PrometheusRule
+# of its own; this chart provides a sensible default set. The rules consume
+# Velero's built-in metrics on openshift-adp-velero-metrics-svc:8085. Whether
+# they actually evaluate depends on whether you have a Prometheus scraping
+# that service (e.g. OpenShift user-workload monitoring with a ServiceMonitor).
+prometheusRule:
+  enabled: true
+  # Window over which a single failed backup triggers VeleroBackupFailed.
+  failureWindow: 1h
+  # How long a schedule may go without a successful backup before alerting.
+  noSuccessWindow: 24h
