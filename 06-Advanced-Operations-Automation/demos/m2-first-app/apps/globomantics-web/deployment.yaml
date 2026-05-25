@@ -6,7 +6,7 @@ metadata:
   labels:
     app: globomantics-web
 spec:
-  replicas: 2
+  replicas: 4
   selector:
     matchLabels:
       app: globomantics-web
