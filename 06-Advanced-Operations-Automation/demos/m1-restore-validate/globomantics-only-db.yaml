@@ -1,0 +1,16 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: globomantics-only-db
+  namespace: openshift-adp
+spec:
+  backupName: globomantics-manual-001
+  includedNamespaces:
+    - globomantics
+  labelSelector:
+    matchLabels:
+      app: db
+  namespaceMapping:
+    globomantics: globomantics-restore
+  restorePVs: true
+

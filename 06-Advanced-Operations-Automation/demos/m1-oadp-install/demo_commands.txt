@@ -1,41 +1,32 @@
-# BASELINE — NO OADP TODAY
-oc get csv -A | grep -i oadp || echo "OADP not installed"
-oc get ns openshift-adp 2>/dev/null || echo "openshift-adp namespace does not exist yet"
-
-# INSTALL THE OADP OPERATOR
-cat oadp-install.yaml #wait 10
-oc apply -f oadp-install.yaml
-
-# WAIT FOR THE CSV TO REACH SUCCEEDED
-watch oc get csv -n openshift-adp #confirm
-
-# VERIFY THE OADP CONTROLLER POD
+# CONFIRM OPERATOR HEALTH
+oc get csv -n openshift-adp | grep -i oadp
 oc get pods -n openshift-adp
 
-# INSTALL THE VELERO CLI ON THE WORKSTATION
-VELERO_VERSION=v1.16.1 #wait 5
-curl -L -o /tmp/velero.tar.gz https://github.com/vmware-tanzu/velero/releases/download/${VELERO_VERSION}/velero-${VELERO_VERSION}-linux-amd64.tar.gz
-tar -xzf /tmp/velero.tar.gz -C /tmp
-sudo install /tmp/velero-${VELERO_VERSION}-linux-amd64/velero /usr/local/bin/velero
-velero version --client-only
-
-# CREATE THE MINIO CREDENTIALS SECRET
-oc create secret generic cloud-credentials -n openshift-adp --from-file cloud=/tmp/credentials-velero
+# VERIFY CREDENTIALS SECRET
+oc get secret cloud-credentials -n openshift-adp
+oc get secret cloud-credentials -n openshift-adp -o jsonpath='{.data.cloud}' | base64 -d
 
 # APPLY THE DATAPROTECTIONAPPLICATION
-cat dpa-minio.yaml #wait 15
-oc apply -f dpa-minio.yaml
+cat dpa-minio.yaml #wait 5
 
-# WATCH VELERO AND THE NODEAGENT COME UP
-watch oc get pods -n openshift-adp #confirm
+# WATCH VELERO STACK PROVISION
+oc get pods -n openshift-adp
 
-# VALIDATE THE BACKUPSTORAGELOCATION
+# VALIDATE BACKUPSTORAGELOCATION
 oc get dpa -n openshift-adp
 oc get backupstoragelocations -n openshift-adp
+
+# DESCRIBE BSL
 oc describe backupstoragelocation dpa-minio-1 -n openshift-adp
 
-# TROUBLESHOOTING DETOUR — VELERO LOGS
+# INSTALL VELERO CLI
+brew install velero
+
+# check version
+velero version --client-only
+
+# TROUBLESHOOTING DETOUR
 oc logs -n openshift-adp deployment/velero --tail=50
 
-# FINAL INVENTORY
+# FINAL STATUS
 oc get dpa,backupstoragelocation -n openshift-adp

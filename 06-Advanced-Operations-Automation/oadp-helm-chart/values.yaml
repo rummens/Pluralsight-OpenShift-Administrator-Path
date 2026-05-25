@@ -30,7 +30,7 @@ bsl:
   bucket: oadp-backups
   prefix: globomantics
   region: minio
-  s3Url: http://minio.minio.svc:9000
+  s3Url: https://minio-api.apps.ocp-test.demo.rummens.de
   insecureSkipTLSVerify: true
   s3ForcePathStyle: true
   credentials:

@@ -60,3 +60,6 @@ spec:
     name: globomantics-website
   port:
     targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

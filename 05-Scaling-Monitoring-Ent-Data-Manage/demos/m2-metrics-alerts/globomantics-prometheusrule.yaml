@@ -11,7 +11,7 @@ spec:
       expr: |
         sum(rate(http_requests_total{namespace="globomantics-app",code=~"4..|5.."}[5m]))
         / sum(rate(http_requests_total{namespace="globomantics-app"}[5m])) > 0.05
-      for: 30s
+      for: 2m
       labels:
         severity: critical
       annotations:

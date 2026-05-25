@@ -1,12 +1,11 @@
-# Remove the OADP operator install (DPA, Subscription, CSV, OperatorGroup)
-oc delete dpa --all -n openshift-adp --ignore-not-found
-oc delete subscription redhat-oadp-operator -n openshift-adp --ignore-not-found
-oc delete csv -l operators.coreos.com/redhat-oadp-operator.openshift-adp -n openshift-adp --ignore-not-found
-oc delete operatorgroup openshift-adp -n openshift-adp --ignore-not-found
-oc delete secret cloud-credentials -n openshift-adp --ignore-not-found
+# Cleanup: remove DPA and Velero stack
+oc delete dpa dpa-minio -n openshift-adp
 
-# Drop the operator namespace last (deletes any remaining velero/nodeagent pods)
-oc delete namespace openshift-adp --ignore-not-found #wait 30
+# Wait for operator to tear down Velero pods
+oc delete pods -n openshift-adp -l app.kubernetes.io/name=velero --force --grace-period=0 2>/dev/null
+oc delete pods -n openshift-adp -l app.kubernetes.io/name=node-agent --force --grace-period=0 2>/dev/null
 
-# Empty the MinIO bucket so the next run starts clean
-oc -n minio exec deployment/minio -- sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/oadp-backups/globomantics/' || true
+# Remove velero CLI
+sudo rm -f /usr/local/bin/velero
+rm -f /tmp/velero.tar.gz
+rm -rf /tmp/velero-v1.14.1-linux-amd64

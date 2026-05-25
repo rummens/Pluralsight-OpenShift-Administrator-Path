@@ -1,11 +1,13 @@
 # PRE-DISASTER BASELINE
 oc get all,pvc -n globomantics
 oc get route -n globomantics -o jsonpath='{.items[0].spec.host}{"\n"}'
+
+# check DB
 oc exec -n globomantics deploy/db -- psql -U postgres -d globomantics -c "SELECT name FROM products LIMIT 5;"
 
 # SIMULATE DISASTER — DELETE THE NAMESPACE
-oc delete namespace globomantics #wait 15
-oc get namespace globomantics 2>/dev/null || echo "globomantics namespace is gone"
+oc delete namespace globomantics #confirm
+oc get namespace globomantics
 
 # CONFIRM THE BACKUP IS STILL AVAILABLE
 oc get backup globomantics-manual-001 -n openshift-adp
@@ -16,34 +18,34 @@ cat globomantics-recovery.yaml #wait 10
 oc apply -f globomantics-recovery.yaml
 
 # WATCH THE RESTORE COMPLETE
-watch oc get restore globomantics-recovery -n openshift-adp #confirm
+oc get restore globomantics-recovery -n openshift-adp -o jsonpath='{.status.phase}: {.status.progress.itemsRestored}/{.status.progress.totalItems} items'
 
 # VALIDATE AGAINST THE BASELINE
 oc get all,pvc -n globomantics
-oc get pod -n globomantics -o jsonpath='{.items[*].status.phase}' ; echo
-curl -sI http://$(oc get route -n globomantics -o jsonpath='{.items[0].spec.host}') | head -1
+
+# route test
+ROUTE=$(oc get route -n globomantics -o jsonpath='{.items[0].spec.host}')
+curl -sI https://$ROUTE
 oc exec -n globomantics deploy/db -- psql -U postgres -d globomantics -c "SELECT name FROM products LIMIT 5;"
 
 # PARTIAL RESTORE INTO A SIDE NAMESPACE
-# Manifest-only restore for inspection. PVCs are deliberately excluded —
-# see globomantics-db-only.yaml for why.
-cat globomantics-db-only.yaml #wait 10
-oc apply -f globomantics-db-only.yaml
+cat globomantics-only-db.yaml #wait 10
+oc apply -f globomantics-only-db.yaml
 
 # WATCH THE PARTIAL RESTORE
-watch oc get restore globomantics-db-only -n openshift-adp #confirm
+oc get restore globomantics-only-db -n openshift-adp -o jsonpath='{.status.phase}: {.status.progress.itemsRestored}/{.status.progress.totalItems} items'
 
 # VERIFY THE SIDE NAMESPACE - manifests are present; the db Pod stays
-# Pending because we did not restore its PVC. That is the intent.
 oc get deploy,svc,cm,secret -n globomantics-restore
 oc get pod -n globomantics-restore
+
+# SIMULATE VELERO CRASHLOOP — SCALE TO ZERO
+oc scale deployment openshift-adp-controller-manager -n openshift-adp --replicas=0
+oc scale deployment velero -n openshift-adp --replicas=0 #wait 5
 
 # APPLY THE STUCK-RESTORE MANIFEST
 cat globomantics-stuck-demo.yaml #wait 10
 oc apply -f globomantics-stuck-demo.yaml
-
-# SIMULATE VELERO CRASHLOOP — SCALE TO ZERO
-oc scale deployment velero -n openshift-adp --replicas=0 #wait 5
 
 # INVESTIGATE THE STUCK RESTORE
 oc get restore -n openshift-adp
@@ -53,11 +55,12 @@ velero restore describe globomantics-stuck-demo -n openshift-adp --details
 oc get pods -n openshift-adp
 
 # RECOVER — SCALE VELERO BACK UP
+oc scale deployment openshift-adp-controller-manager -n openshift-adp --replicas=1
 oc scale deployment velero -n openshift-adp --replicas=1
 watch oc get pods -n openshift-adp -l app.kubernetes.io/name=velero #confirm
 
 # WAIT FOR THE RESTORE TO RECONCILE
-watch oc get restore globomantics-stuck-demo -n openshift-adp #confirm
+watch "oc get restore globomantics-stuck-demo -n openshift-adp -o jsonpath='{.status.phase}: {.status.progress.itemsRestored}/{.status.progress.totalItems} items'" #confirm
 
 # FINAL INVENTORY
 oc get restore -n openshift-adp
