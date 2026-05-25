@@ -19,6 +19,9 @@ spec:
         repoURL: https://github.com/rummens/Pluralsight-OpenShift-Administrator-Path
         path: '{{path}}'
         targetRevision: main
+        helm:
+          valueFiles:
+            - values.yaml
       destination:
         server: https://kubernetes.default.svc
         namespace: 'globomantics-{{path.basename}}'

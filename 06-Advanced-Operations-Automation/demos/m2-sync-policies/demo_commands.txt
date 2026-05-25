@@ -1,26 +1,10 @@
-# (UI: open globomantics-web tile → APP DETAILS → SYNC POLICY → ENABLE AUTO-SYNC, tick PRUNE RESOURCES, tick SELF HEAL)
-
-# CONFIRM AUTO-SYNC LANDED
-oc get application globomantics-web -n openshift-gitops -o jsonpath='{.spec.syncPolicy.automated}'
-echo ""
-
-# (UI: tour resource tree — click a pod node → EVENTS → LOGS → DIFF tabs)
-
-# SELF-HEAL TEST — DELETE THE DEPLOYMENT
-oc delete deployment globomantics-web -n globomantics
-
-# (UI: tile flashes OutOfSync + Missing, then returns to Synced + Healthy within seconds)
-
-# CONFIRM ARGO CD RESTORED THE DEPLOYMENT
-oc get deployment globomantics-web -n globomantics #wait 8
-
 # PRUNE TEST — REMOVE CONFIGMAP FROM GIT
-cd ~/git/Pluralsight-OpenShift-Administrator-Path
-git rm 06-Advanced-Operations-Automation/demos/m2-first-app/apps/globomantics-web/configmap.yaml
+git rm ../m2-first-app/apps/globomantics-web/configmap.yaml
 git commit -m "globomantics-web: drop unused ConfigMap"
 git push origin main
 
 # (UI: REFRESH the tile → OutOfSync → Argo CD prunes → Synced + Healthy)
+echo "" #confirm
 
 # CONFIRM THE CONFIGMAP IS GONE
 oc get configmap -n globomantics
@@ -28,4 +12,3 @@ oc get configmap -n globomantics
 # FINAL STATE CHECK
 oc get application globomantics-web -n openshift-gitops
 oc get application globomantics-web -n openshift-gitops -o jsonpath='{.spec.syncPolicy.automated}'
-echo ""

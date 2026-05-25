@@ -1,12 +1,11 @@
 # TOUR THE REPO LAYOUT
-cd ~/git/Pluralsight-OpenShift-Administrator-Path/06-Advanced-Operations-Automation/demos/m2-applicationsets
-tree -L 3 . #wait 8
+tree -L 3 .
 
 # PROD OVERLAY
-cat environments/prod/kustomization.yaml #wait 10
+cat environments/prod/kustomization.yaml
 
 # APPLICATIONSET MANIFEST
-cat applicationsets/globomantics-web-envs.yaml #wait 15
+cat applicationsets/globomantics-web-envs.yaml #confirm
 
 # APPLY THE APPLICATIONSET
 oc apply -f applicationsets/globomantics-web-envs.yaml
@@ -15,6 +14,7 @@ oc apply -f applicationsets/globomantics-web-envs.yaml
 oc get applications -n openshift-gitops #wait 8
 
 # (UI: four tiles visible → prod is OutOfSync/red)
+echo "" #confirm
 
 # DIAGNOSE THE FORBIDDEN ERROR ON PROD
 oc get application globomantics-web-prod -n openshift-gitops -o jsonpath='{.status.conditions}' | jq .
@@ -23,19 +23,23 @@ oc get application globomantics-web-prod -n openshift-gitops -o jsonpath='{.stat
 oc create clusterrolebinding gitops-cluster-admin --clusterrole=cluster-admin --serviceaccount=openshift-gitops:openshift-gitops-argocd-application-controller
 
 # (UI: REFRESH globomantics-web-prod tile → Synced + Healthy)
+echo "" #confirm
 
 # CONFIRM ALL FOUR APPLICATIONS HEALTHY
 oc get applications -n openshift-gitops #wait 6
 
 # ONBOARD QA — DIRECTORY COPY + COMMIT
-cd ~/git/Pluralsight-OpenShift-Administrator-Path/06-Advanced-Operations-Automation/demos/m2-applicationsets
 cp -r environments/staging environments/qa
-sed -i 's/globomantics-staging/globomantics-qa/' environments/qa/kustomization.yaml
+sed -i '' 's/globomantics-staging/globomantics-qa/' environments/qa/kustomization.yaml
 git add environments/qa
 git commit -m "globomantics-web: onboard QA environment"
 git push origin main
 
 # (UI: refresh the globomantics-web-envs ApplicationSet → fifth tile appears → Synced + Healthy)
+echo "" #confirm
+
+# Check helm
+cat applicationsets/globomantics-web-envs-helm.yaml #confirm
 
 # CONFIRM THE FIVE-APPLICATION FINAL STATE
 oc get applications -n openshift-gitops #wait 8
