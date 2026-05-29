@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hog-1
+  namespace: globomantics-staging
+  labels:
+    demo: bottleneck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-hog-1
+  template:
+    metadata:
+      labels:
+        app: resource-hog-1
+    spec:
+      containers:
+      - name: hog
+        image: registry.access.redhat.com/ubi9/ubi-minimal
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hog-2
+  namespace: globomantics-staging
+  labels:
+    demo: bottleneck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-hog-2
+  template:
+    metadata:
+      labels:
+        app: resource-hog-2
+    spec:
+      containers:
+      - name: hog
+        image: registry.access.redhat.com/ubi9/ubi-minimal
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hog-3
+  namespace: globomantics-staging
+  labels:
+    demo: bottleneck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-hog-3
+  template:
+    metadata:
+      labels:
+        app: resource-hog-3
+    spec:
+      containers:
+      - name: hog
+        image: registry.access.redhat.com/ubi9/ubi-minimal
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hog-4
+  namespace: globomantics-staging
+  labels:
+    demo: bottleneck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-hog-4
+  template:
+    metadata:
+      labels:
+        app: resource-hog-4
+    spec:
+      containers:
+      - name: hog
+        image: registry.access.redhat.com/ubi9/ubi-minimal
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi

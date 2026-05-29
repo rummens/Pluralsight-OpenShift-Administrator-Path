@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: globomantics
+  labels:
+    demo: bottleneck
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      containers:
+      - name: hey
+        image: registry.access.redhat.com/ubi9/ubi-minimal
+        command: ["sh", "-c"]
+        args:
+        - "while true; do curl -s -o /dev/null http://web.globomantics.svc:8080 || true; done"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

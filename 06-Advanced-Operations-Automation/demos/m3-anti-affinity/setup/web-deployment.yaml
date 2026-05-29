@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: globomantics
+  labels:
+    app: web
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # maxSurge: 0 + maxUnavailable: 1 keeps rolling updates feasible once we
+      # patch in hard pod anti-affinity. With the default maxSurge: 25%, the new
+      # ReplicaSet would try to surge a 4th pod that has nowhere to land (every
+      # node already runs an old web pod with the same label), and the rollout
+      # would deadlock until progressDeadlineSeconds (10m) expires.
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: ghcr.io/rummens/pluralsight-globomantics-website:v3
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: globomantics
+  labels:
+    app: web
+spec:
+  selector:
+    app: web
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  namespace: globomantics
+  labels:
+    app: web
+spec:
+  to:
+    kind: Service
+    name: web
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

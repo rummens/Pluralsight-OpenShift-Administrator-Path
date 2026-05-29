@@ -1,0 +1,2 @@
+# Cleanup: remove the demo PrometheusRule (leave UWM ConfigMap and namespace in place for re-recording)
+oc delete prometheusrule globomantics-early-warnings -n globomantics --ignore-not-found

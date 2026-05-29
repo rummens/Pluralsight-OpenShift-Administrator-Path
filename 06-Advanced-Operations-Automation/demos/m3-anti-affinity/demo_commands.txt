@@ -1,0 +1,38 @@
+# INITIAL STATE
+oc get pods -n globomantics -l app=web -o wide
+
+# APPLY HARD ANTI-AFFINITY
+cat affinity-hard.yaml #wait 10
+oc patch deployment web -n globomantics --type=merge --patch-file=affinity-hard.yaml
+
+# VERIFY SPREAD
+oc rollout status deployment/web -n globomantics
+oc get pods -n globomantics -l app=web -o wide
+
+# FORCE A PENDING POD
+oc scale deployment web -n globomantics --replicas=4
+oc get pods -n globomantics -l app=web -o wide #wait 15
+PENDING=$(oc get pods -n globomantics -l app=web --field-selector=status.phase=Pending -o jsonpath='{.items[0].metadata.name}')
+oc describe pod $PENDING -n globomantics | grep -A 10 "Events"
+oc scale deployment web -n globomantics --replicas=3
+
+# APPLY SOFT ANTI-AFFINITY
+cat affinity-soft.yaml #wait 10
+oc patch deployment web -n globomantics --type=merge --patch-file=affinity-soft.yaml
+
+# SCALE UP AND VERIFY
+oc rollout status deployment/web -n globomantics
+oc scale deployment web -n globomantics --replicas=4
+oc get pods -n globomantics -l app=web -o wide #wait 8
+
+# DRAIN A NODE
+NODE=$(oc get pods -n globomantics -l app=web -o jsonpath='{.items[0].spec.nodeName}')
+# In a SECOND pane, start the watch BEFORE the drain:
+#   watch 'oc get pods -n globomantics -l app=web -o wide'
+oc adm cordon $NODE
+oc adm drain $NODE --ignore-daemonsets --delete-emptydir-data --force
+curl -s -o /dev/null -w "%{http_code}\n" https://$(oc get route web -n globomantics -o jsonpath='{.spec.host}') #wait 6
+oc adm uncordon $NODE
+
+# FINAL STATE
+oc get pods -n globomantics -l app=web -o wide

@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: globomantics-early-warnings
+  namespace: globomantics
+spec:
+  groups:
+  - name: globomantics.warnings
+    rules:
+    - alert: NodeMemoryPressureWarning
+      expr: |
+        (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+      for: 5m
+      keep_firing_for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Node {{ $labels.instance }} memory usage above 85%"
+        description: "Memory usage has been above 85% for 5 minutes. Current value: {{ $value | humanizePercentage }}"
+        runbook_url: "https://runbooks.globomantics.example.com/node-memory-pressure"
+    - alert: PodHighRestartRate
+      expr: |
+        rate(kube_pod_container_status_restarts_total{namespace="globomantics"}[1h]) > 0.5
+      for: 10m
+      keep_firing_for: 15m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Pod {{ $labels.pod }} in globomantics restarting frequently"
+        description: "Pod has restarted at an elevated rate over the last 10 minutes."
+        runbook_url: "https://runbooks.globomantics.example.com/pod-restart-rate"

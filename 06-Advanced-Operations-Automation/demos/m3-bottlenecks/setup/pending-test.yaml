@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-test
+  namespace: globomantics
+  labels:
+    demo: bottleneck
+spec:
+  restartPolicy: Never
+  containers:
+  - name: pending-test
+    image: busybox
+    command: ["sleep", "3600"]
+    resources:
+      requests:
+        cpu: "100"
+        memory: 512Gi

@@ -1,0 +1,19 @@
+# APPLY PROMETHEUSRULE
+cat globomantics-warnings.yaml #wait 20
+oc apply -f globomantics-warnings.yaml
+
+# VERIFY RULE LOADED
+oc get prometheusrule -n globomantics
+
+# CONSOLE: ALERTING RULES
+echo "" #confirm
+
+# MACHINESET WALKTHROUGH
+cat machineset-sample.yaml #wait 25
+oc scale machineset <name> -n openshift-machine-api --replicas=N
+
+# CLUSTER AUTOSCALER
+cat cluster-autoscaler.yaml
+
+# CLOSING VERIFICATION
+oc get prometheusrule -n globomantics

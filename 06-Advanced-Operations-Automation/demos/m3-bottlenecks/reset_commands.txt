@@ -1,0 +1,3 @@
+# Cleanup: delete both demo namespaces
+oc delete namespace globomantics --ignore-not-found
+oc delete namespace globomantics-staging --ignore-not-found

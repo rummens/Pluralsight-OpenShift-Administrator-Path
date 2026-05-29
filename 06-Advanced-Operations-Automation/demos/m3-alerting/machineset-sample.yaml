@@ -1,0 +1,33 @@
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  name: globomantics-workers-us-east-1a
+  namespace: openshift-machine-api
+  labels:
+    machine.openshift.io/cluster-api-cluster: globomantics-cluster
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: globomantics-cluster
+      machine.openshift.io/cluster-api-machineset: globomantics-workers-us-east-1a
+  template:
+    metadata:
+      labels:
+        machine.openshift.io/cluster-api-cluster: globomantics-cluster
+        machine.openshift.io/cluster-api-machineset: globomantics-workers-us-east-1a
+    spec:
+      providerSpec:
+        value:
+          apiVersion: machine.openshift.io/v1beta1
+          kind: AWSMachineProviderConfig
+          ami:
+            id: ami-0xxxxxxxxxxxxxxxx
+          instanceType: m6i.xlarge
+          placement:
+            availabilityZone: us-east-1a
+            region: us-east-1
+          subnet:
+            id: subnet-0xxxxxxxxxxxxxxxx
+          credentialsSecret:
+            name: aws-cloud-credentials

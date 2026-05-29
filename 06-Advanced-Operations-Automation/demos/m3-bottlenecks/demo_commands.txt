@@ -1,0 +1,26 @@
+# BROAD VIEW
+oc adm top nodes
+oc adm top pods -n globomantics
+
+# NODE DEEP-DIVE
+WORKER=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}')
+echo $WORKER
+oc describe node $WORKER | grep -A 5 "Allocated resources" #wait 8
+
+# PROMQL IN CONSOLE
+# Run interactively in the OpenShift Console (Observe -> Metrics), one query per panel:
+# rate(container_cpu_cfs_throttled_periods_total{namespace="globomantics", container="web"}[5m]) / rate(container_cpu_cfs_periods_total{namespace="globomantics", container="web"}[5m])
+# kube_node_status_condition{condition="MemoryPressure", status="true"}
+# rate(kube_pod_container_status_restarts_total{namespace="globomantics"}[1h]) > 0
+echo "" #confirm
+
+# EVENTS AND OOMKILLED POD
+oc get events -n globomantics --sort-by='.lastTimestamp' | tail -20
+
+# PENDING POD DIAGNOSIS
+oc get pod pending-test -n globomantics
+oc describe pod pending-test -n globomantics | grep -A 10 "Events"
+oc delete pod pending-test -n globomantics
+
+# FINAL STATE
+oc get pods -n globomantics -l app=web
