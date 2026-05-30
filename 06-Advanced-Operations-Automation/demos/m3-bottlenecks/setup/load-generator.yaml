@@ -23,5 +23,8 @@ spec:
         - "while true; do curl -s -o /dev/null http://web.globomantics.svc:8080 || true; done"
         resources:
           requests:
-            cpu: 100m
-            memory: 128Mi
+            cpu: 10
+            memory: 2G
+          limits:
+            cpu: 12
+            memory: 8G

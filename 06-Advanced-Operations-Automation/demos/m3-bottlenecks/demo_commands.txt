@@ -3,15 +3,25 @@ oc adm top nodes
 oc adm top pods -n globomantics
 
 # NODE DEEP-DIVE
-WORKER=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}')
+WORKER=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[1].metadata.name}')
 echo $WORKER
 oc describe node $WORKER | grep -A 5 "Allocated resources" #wait 8
 
+# Find bad pods with high resource requests
+oc get pods -A -o json | jq -r '
+  .items[]
+  | select(.metadata.namespace | startswith("openshift-") | not)
+  | select(any(
+      .spec.containers[];
+      (.resources.requests.cpu // "0") as $c
+      | (if ($c | endswith("m"))
+         then ($c | rtrimstr("m") | tonumber) / 1000
+         else ($c | tonumber) end) > 6
+    ))
+  | "\(.metadata.namespace)/\(.metadata.name)"'
+
+
 # PROMQL IN CONSOLE
-# Run interactively in the OpenShift Console (Observe -> Metrics), one query per panel:
-# rate(container_cpu_cfs_throttled_periods_total{namespace="globomantics", container="web"}[5m]) / rate(container_cpu_cfs_periods_total{namespace="globomantics", container="web"}[5m])
-# kube_node_status_condition{condition="MemoryPressure", status="true"}
-# rate(kube_pod_container_status_restarts_total{namespace="globomantics"}[1h]) > 0
 echo "" #confirm
 
 # EVENTS AND OOMKILLED POD

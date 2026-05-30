@@ -21,8 +21,11 @@ spec:
         command: ["sleep", "infinity"]
         resources:
           requests:
-            cpu: 500m
+            cpu: 4
             memory: 1Gi
+          limits:
+            cpu: 6
+            memory: 3Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,7 +50,7 @@ spec:
         command: ["sleep", "infinity"]
         resources:
           requests:
-            cpu: 500m
+            cpu: 4
             memory: 1Gi
 ---
 apiVersion: apps/v1
@@ -73,7 +76,7 @@ spec:
         command: ["sleep", "infinity"]
         resources:
           requests:
-            cpu: 500m
+            cpu: 4
             memory: 1Gi
 ---
 apiVersion: apps/v1
@@ -99,5 +102,5 @@ spec:
         command: ["sleep", "infinity"]
         resources:
           requests:
-            cpu: 500m
+            cpu: 4
             memory: 1Gi
