@@ -1,0 +1,42 @@
+# RESOLVE NODE NAMES
+WORKER1=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}')
+WORKER2=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[1].metadata.name}')
+echo "Workers: $WORKER1 / $WORKER2"
+
+# BASELINE
+oc get nodes
+oc get nodes --show-labels | tr ',' '\n' | grep node-role
+
+# DEDICATE TWO NODES
+oc label node $WORKER1 node-role=infra
+oc label node $WORKER2 node-role=infra
+oc adm taint nodes $WORKER1 dedicated=infra:NoSchedule
+oc adm taint nodes $WORKER2 dedicated=infra:NoSchedule
+
+# DEPLOY LOG-AGENT
+cat log-agent.yaml #wait 10
+oc apply -f log-agent.yaml
+
+# VERIFY PLACEMENT
+watch oc get pods -n globomantics -o wide -l app=log-agent #confirm
+
+# SHOW THE REPEL SIDE
+oc create deployment web --image=registry.access.redhat.com/ubi9/httpd-24 -n globomantics --replicas=3
+watch oc get pods -n globomantics -o wide -l app=web #confirm
+oc describe node $WORKER1 | grep -A2 Taints
+
+# TROUBLESHOOT A PENDING POD
+oc patch deployment web -n globomantics --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{"node-role":"inrfa"}}}}}'
+oc get pods -n globomantics -l app=web #wait 6
+oc describe pod -n globomantics -l app=web | grep -A5 Events
+
+# CLEAR BAD SELECTOR
+oc patch deployment web -n globomantics --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":null}}}}'
+watch oc get pods -n globomantics -o wide -l app=web #confirm
+
+# DECOMMISSION
+oc adm taint nodes $WORKER1 dedicated=infra:NoSchedule-
+oc adm taint nodes $WORKER2 dedicated=infra:NoSchedule-
+oc label node $WORKER1 node-role-
+oc label node $WORKER2 node-role-
+oc get nodes --show-labels | tr ',' '\n' | grep node-role #wait 8

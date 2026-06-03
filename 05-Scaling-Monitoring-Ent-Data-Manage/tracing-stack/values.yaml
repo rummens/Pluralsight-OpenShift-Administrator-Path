@@ -1,0 +1,88 @@
+# Target namespace for the shared trace store and collector. This is the
+# Globomantics application namespace from the demo. Set createNamespace to
+# false if it already exists and is not managed by this release.
+namespace: globomantics
+createNamespace: true
+
+# ----- Operator subscriptions -----
+# Both operators install cluster-wide into openshift-operators, which already
+# has a global (AllNamespaces) OperatorGroup, so this chart creates none.
+operators:
+  namespace: openshift-operators
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  tempo:
+    # Red Hat Tempo Operator — manages the trace store.
+    name: tempo-product
+    channel: stable
+    startingCSV: ""
+  opentelemetry:
+    # Red Hat build of OpenTelemetry — manages the collector.
+    name: opentelemetry-product
+    channel: stable
+    startingCSV: ""
+
+# ----- TempoMonolithic trace store -----
+# backend: pv keeps traces off object storage — the pragmatic lab choice
+# (monolithic mode is Technology Preview; production should use object storage).
+# jaegerui surfaces the trace-reading UI through Tempo's query frontend.
+tempo:
+  name: globomantics-tempo
+  storage:
+    backend: pv
+    size: 5Gi
+  jaegerui:
+    enabled: true
+    # Expose the Jaeger UI through an OpenShift Route as well as the
+    # in-console Observe -> Traces view.
+    route:
+      enabled: true
+  # Multi-tenancy with mode "openshift" deploys a tempo-gateway that fronts
+  # ingest + query with OpenShift auth (TokenReview/SubjectAccessReview). This
+  # is REQUIRED for the console "Observe -> Traces" plugin to discover and query
+  # the instance — a non-multitenant monolithic store has no gateway and shows
+  # up as "no Tempo instance". Disabling it falls back to the direct OTLP
+  # service + Jaeger UI route only (no console Traces page).
+  multitenancy:
+    enabled: true
+    mode: openshift
+    # tenantName goes in the X-Scope-OrgID header and in the write/read RBAC
+    # ClusterRole resources field. tenantId must be a stable UUID, unique over
+    # the lifetime of the deployment (it prefixes objects in storage).
+    tenantName: globomantics
+    tenantId: 9f3b6d2e-1a47-4c8b-9e21-7d5c0a1b2c3d
+
+# ----- OpenTelemetryCollector -----
+# Receives spans over OTLP (4317 gRPC / 4318 HTTP) from apps and forwards them
+# to Tempo. With multitenancy enabled it exports through the tempo-gateway
+# (port gatewayPort) using the collector ServiceAccount's bearer token and the
+# X-Scope-OrgID tenant header, over TLS validated by the in-cluster service CA.
+# The gateway service is "tempo-<TempoMonolithic name>-gateway", derived from
+# tempo.name. Apps still point at the collector service, unaware of any of this.
+collector:
+  name: globomantics-otelcol
+  # Dedicated SA the chart grants tenant write RBAC to.
+  serviceAccount: globomantics-otelcol
+  # OTLP gRPC port exposed by the tempo-gateway. The TempoMonolithic gateway
+  # (operator v0.20) serves OTLP gRPC on 4317 (not the 8090 used by older
+  # TempoStack gateways). Verified against the live tempo-*-gateway Service.
+  gatewayPort: 4317
+
+# ----- Console Traces UI -----
+# The "Observe -> Traces" menu item is provided by the Cluster Observability
+# Operator (COO) via a UIPlugin, NOT by the Tempo/OTel operators. COO must
+# already be installed on the cluster (it also powers the Logging/Monitoring
+# console plugins). This creates the distributed-tracing UIPlugin so the menu
+# appears. The name must be "distributed-tracing" — the operator keys on it.
+consoleUIPlugin:
+  enabled: true
+  name: distributed-tracing
+
+# ----- Install hook tuning -----
+# A post-install Job waits for both operator CRDs to register, then applies the
+# TempoMonolithic and OpenTelemetryCollector custom resources, retrying until
+# the operator webhooks are ready.
+hooks:
+  image: registry.redhat.io/openshift4/ose-cli:latest
+  waitTimeoutSeconds: 600

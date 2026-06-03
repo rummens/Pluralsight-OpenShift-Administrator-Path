@@ -1,0 +1,33 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: {{ .Values.operators.tempo.name }}
+  namespace: {{ .Values.operators.namespace }}
+  labels:
+    {{- include "tracing-stack.labels" . | nindent 4 }}
+spec:
+  channel: {{ .Values.operators.tempo.channel }}
+  name: {{ .Values.operators.tempo.name }}
+  source: {{ .Values.operators.source }}
+  sourceNamespace: {{ .Values.operators.sourceNamespace }}
+  installPlanApproval: {{ .Values.operators.installPlanApproval }}
+  {{- with .Values.operators.tempo.startingCSV }}
+  startingCSV: {{ . }}
+  {{- end }}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: {{ .Values.operators.opentelemetry.name }}
+  namespace: {{ .Values.operators.namespace }}
+  labels:
+    {{- include "tracing-stack.labels" . | nindent 4 }}
+spec:
+  channel: {{ .Values.operators.opentelemetry.channel }}
+  name: {{ .Values.operators.opentelemetry.name }}
+  source: {{ .Values.operators.source }}
+  sourceNamespace: {{ .Values.operators.sourceNamespace }}
+  installPlanApproval: {{ .Values.operators.installPlanApproval }}
+  {{- with .Values.operators.opentelemetry.startingCSV }}
+  startingCSV: {{ . }}
+  {{- end }}

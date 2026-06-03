@@ -1,0 +1,196 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tracing-install-wait
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tracing-install-wait-{{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: tracing-install-wait
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tracing-cr-manifests
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  tempomonolithic.yaml: |
+    apiVersion: tempo.grafana.com/v1alpha1
+    kind: TempoMonolithic
+    metadata:
+      name: {{ .Values.tempo.name }}
+      namespace: {{ .Values.namespace }}
+    spec:
+      storage:
+        traces:
+          backend: {{ .Values.tempo.storage.backend }}
+          {{- if eq .Values.tempo.storage.backend "pv" }}
+          size: {{ .Values.tempo.storage.size }}
+          {{- end }}
+      jaegerui:
+        enabled: {{ .Values.tempo.jaegerui.enabled }}
+        route:
+          enabled: {{ .Values.tempo.jaegerui.route.enabled }}
+      {{- if .Values.tempo.multitenancy.enabled }}
+      multitenancy:
+        enabled: true
+        mode: {{ .Values.tempo.multitenancy.mode }}
+        authentication:
+          - tenantName: {{ .Values.tempo.multitenancy.tenantName }}
+            tenantId: {{ .Values.tempo.multitenancy.tenantId | quote }}
+      {{- end }}
+  otel-collector.yaml: |
+    apiVersion: opentelemetry.io/v1beta1
+    kind: OpenTelemetryCollector
+    metadata:
+      name: {{ .Values.collector.name }}
+      namespace: {{ .Values.namespace }}
+    spec:
+      {{- if .Values.tempo.multitenancy.enabled }}
+      serviceAccount: {{ .Values.collector.serviceAccount }}
+      config:
+        extensions:
+          # Sends the collector pod's ServiceAccount token to the gateway.
+          bearertokenauth:
+            filename: /var/run/secrets/kubernetes.io/serviceaccount/token
+        receivers:
+          otlp:
+            protocols:
+              grpc: {}
+              http: {}
+        exporters:
+          otlp:
+            endpoint: {{ include "tracing-stack.tempoGateway" . }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.collector.gatewayPort }}
+            tls:
+              insecure: false
+              ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+            auth:
+              authenticator: bearertokenauth
+            headers:
+              X-Scope-OrgID: {{ .Values.tempo.multitenancy.tenantName }}
+        service:
+          extensions: [bearertokenauth]
+          pipelines:
+            traces:
+              receivers: [otlp]
+              exporters: [otlp]
+      {{- else }}
+      config:
+        receivers:
+          otlp:
+            protocols:
+              grpc: {}
+              http: {}
+        exporters:
+          otlp:
+            endpoint: {{ include "tracing-stack.tempoService" . }}:4317
+            tls:
+              insecure: true
+        service:
+          pipelines:
+            traces:
+              receivers: [otlp]
+              exporters: [otlp]
+      {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tracing-wait-and-apply
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "tracing-stack.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: tracing-install-wait
+      restartPolicy: Never
+      volumes:
+        - name: manifests
+          configMap:
+            name: tracing-cr-manifests
+      containers:
+        - name: wait-apply
+          image: {{ .Values.hooks.image }}
+          volumeMounts:
+            - name: manifests
+              mountPath: /manifests
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              timeout={{ .Values.hooks.waitTimeoutSeconds }}
+              end=$(( $(date +%s) + timeout ))
+
+              wait_crd() {
+                local crd="$1"
+                echo "Waiting for CRD ${crd} to register ..."
+                until oc get crd "${crd}" >/dev/null 2>&1; do
+                  [ "$(date +%s)" -ge "$end" ] && { echo "timeout waiting for ${crd}"; exit 1; }
+                  sleep 5
+                done
+                oc wait --for=condition=Established "crd/${crd}" --timeout="${timeout}s"
+              }
+
+              wait_crd tempomonolithics.tempo.grafana.com
+              wait_crd opentelemetrycollectors.opentelemetry.io
+
+              # Retry applies until the operator webhooks are ready to admit the CRs.
+              apply_until() {
+                local file="$1"
+                until oc apply -f "${file}"; do
+                  [ "$(date +%s)" -ge "$end" ] && { echo "timeout applying ${file}"; exit 1; }
+                  echo "apply of ${file} failed (webhook not ready?), retrying ..."
+                  sleep 5
+                done
+              }
+
+              echo "Applying TempoMonolithic ..."
+              apply_until /manifests/tempomonolithic.yaml
+              {{- if .Values.tempo.multitenancy.enabled }}
+
+              # Multitenant: the collector exports to the tempo-gateway. Start it
+              # only once the gateway is accepting connections, otherwise the
+              # collector's first export attempts log connection-refused errors
+              # (harmless retries, but noisy in the demo troubleshooting view).
+              gw={{ include "tracing-stack.tempoGateway" . }}
+              echo "Waiting for TempoMonolithic to report Ready ..."
+              oc -n {{ .Values.namespace }} wait --for=condition=Ready \
+                tempomonolithic/{{ .Values.tempo.name }} --timeout="${timeout}s" || true
+              echo "Waiting for the ${gw} gateway endpoints to be ready ..."
+              until [ -n "$(oc -n {{ .Values.namespace }} get endpoints "${gw}" \
+                -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)" ]; do
+                [ "$(date +%s)" -ge "$end" ] && { echo "timeout waiting for gateway endpoints"; break; }
+                sleep 5
+              done
+              {{- end }}
+              echo "Applying OpenTelemetryCollector ..."
+              apply_until /manifests/otel-collector.yaml
+              echo "Done. Tracing stack custom resources applied."

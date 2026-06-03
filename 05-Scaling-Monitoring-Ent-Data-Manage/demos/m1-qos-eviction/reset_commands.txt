@@ -1,0 +1,6 @@
+# Cleanup: delete QoS pods, oversized, PDB, web deployment; uncordon node
+WORKER1=$(oc get nodes -l node-role.kubernetes.io/worker --no-headers -o name | sed 's|node/||' | sed -n '1p')
+oc delete pod qos-guaranteed qos-burstable qos-besteffort oversized -n globomantics --ignore-not-found
+oc delete poddisruptionbudget web-pdb -n globomantics --ignore-not-found
+oc delete deployment web -n globomantics --ignore-not-found
+oc adm uncordon $WORKER1

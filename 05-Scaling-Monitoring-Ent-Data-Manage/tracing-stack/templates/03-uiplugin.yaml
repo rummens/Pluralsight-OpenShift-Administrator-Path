@@ -1,0 +1,13 @@
+{{- if .Values.consoleUIPlugin.enabled }}
+# Adds the "Observe -> Traces" page to the OpenShift web console.
+# Requires the Cluster Observability Operator (which owns this CRD) to be
+# installed already. Disable with consoleUIPlugin.enabled=false.
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: {{ .Values.consoleUIPlugin.name }}
+  labels:
+    {{- include "tracing-stack.labels" . | nindent 4 }}
+spec:
+  type: DistributedTracing
+{{- end }}

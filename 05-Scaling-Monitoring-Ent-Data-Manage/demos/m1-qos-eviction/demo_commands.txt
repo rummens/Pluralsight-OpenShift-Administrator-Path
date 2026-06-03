@@ -1,0 +1,44 @@
+# RESOLVE NODE NAME
+export WORKER1=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}')
+echo "Node: $WORKER1"
+
+# ── Phase 1: Earn the class ────────────────────────────────────────────────
+cat qos-pods.yaml #wait 10
+oc apply -f qos-pods.yaml
+for p in qos-guaranteed qos-burstable qos-besteffort; do echo -n "$p -> "; oc get pod $p -n globomantics -o jsonpath='{.status.qosClass}{"\n"}'; done
+
+# ── Phase 2: Requests drive scheduling ─────────────────────────────────────
+cat oversized.yaml #wait 10
+oc apply -f oversized.yaml
+oc get pod oversized -n globomantics #wait 4
+oc describe pod oversized -n globomantics | grep -A3 Events
+
+# ── Phase 3: Eviction order — using the Eviction API ──────────────────────
+oc get pods -n globomantics
+
+./evict-pod.sh qos-besteffort
+oc get pods -n globomantics
+oc get pod qos-besteffort -n globomantics -o jsonpath='reason: {.status.reason}{"\n"}'
+
+# burstable
+./evict-pod.sh qos-burstable
+oc get pods -n globomantics
+
+# clear
+oc get pod qos-guaranteed -n globomantics -o jsonpath='class: {.status.qosClass}  phase: {.status.phase}{"\n"}'
+
+# ── Phase 4: PodDisruptionBudget guards a drain ────────────────────────────
+# Pin web pods to the node we're about to drain
+oc patch deployment web -n globomantics -p \
+  "{\"spec\":{\"template\":{\"spec\":{\"nodeSelector\":{\"kubernetes.io/hostname\":\"$WORKER1\"}}}}}"
+oc rollout status deployment/web -n globomantics
+oc get pods -n globomantics -l app=web -o wide
+
+oc create poddisruptionbudget web-pdb --selector=app=web --min-available=2 -n globomantics
+# --pod-selector scopes drain to web pods only; skips bare QoS pods and
+# OCP control-plane guard pods that have no controller ref (compact cluster)
+oc adm drain $WORKER1 --ignore-daemonsets --delete-emptydir-data --pod-selector=app=web #confirm
+
+# ── Phase 5: Recover ───────────────────────────────────────────────────────
+oc adm uncordon $WORKER1
+oc get nodes #wait 6

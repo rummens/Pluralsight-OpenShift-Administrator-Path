@@ -1,0 +1,3 @@
+# Cleanup: remove the traced app (tracing stack left intact for next recording take)
+oc delete deployment globomantics-web globomantics-checkout -n globomantics --ignore-not-found
+oc delete service globomantics-web globomantics-checkout -n globomantics --ignore-not-found

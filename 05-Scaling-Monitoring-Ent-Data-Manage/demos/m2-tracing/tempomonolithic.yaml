@@ -1,0 +1,12 @@
+apiVersion: tempo.grafana.com/v1alpha1
+kind: TempoMonolithic
+metadata:
+  name: globomantics-tempo
+  namespace: globomantics
+spec:
+  storage:
+    traces:
+      backend: pv
+      size: 5Gi
+  jaegerui:
+    enabled: true

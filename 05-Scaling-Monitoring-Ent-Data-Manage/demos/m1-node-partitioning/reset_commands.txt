@@ -1,0 +1,8 @@
+# Cleanup: remove deployments, restore node labels and taints
+WORKER1=$(oc get nodes -l node-role.kubernetes.io/worker --no-headers -o name | sed 's|node/||' | sed -n '1p')
+WORKER2=$(oc get nodes -l node-role.kubernetes.io/worker --no-headers -o name | sed 's|node/||' | sed -n '2p')
+oc delete deployment log-agent web -n globomantics --ignore-not-found
+oc adm taint nodes $WORKER1 dedicated=infra:NoSchedule-
+oc adm taint nodes $WORKER2 dedicated=infra:NoSchedule-
+oc label node $WORKER1 node-role-
+oc label node $WORKER2 node-role-

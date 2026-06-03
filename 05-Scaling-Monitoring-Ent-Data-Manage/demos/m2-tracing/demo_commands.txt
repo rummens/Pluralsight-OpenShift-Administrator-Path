@@ -1,0 +1,33 @@
+# TEMPO OPERATOR SUBSCRIPTION
+cat tempo-operator-subscription.yaml
+oc get csv -n openshift-operators | grep tempo
+
+# OTEL OPERATOR SUBSCRIPTION
+cat otel-operator-subscription.yaml
+oc get csv -n openshift-operators | grep opentelemetry
+
+# TRACE STORE MANIFEST
+cat tempomonolithic.yaml
+oc -n globomantics get pods -l app.kubernetes.io/name=tempo-monolithic
+
+# COLLECTOR MANIFEST
+cat otel-collector.yaml
+
+# COLLECTOR POD
+oc -n globomantics get pods -l app.kubernetes.io/name=globomantics-otelcol-collector
+
+# DEPLOY THE APP
+cat globomantics-traced-app.yaml #wait 15
+oc apply -f globomantics-traced-app.yaml -n globomantics
+
+# VERIFY AND GENERATE TRAFFIC
+watch oc -n globomantics get pods -l app=globomantics-web #confirm
+oc -n globomantics exec deploy/globomantics-web -- sh -c 'for i in {1..20}; do curl http://localhost:8080/checkout; done; sleep 5' #confirm
+
+# READ THE TRACE IN CONSOLE
+
+# TROUBLESHOOT MISSING TRACES
+oc -n globomantics logs deploy/globomantics-web | grep -i otlp
+oc -n globomantics logs -l app.kubernetes.io/name=globomantics-otelcol-collector --tail=30 #wait 6
+oc -n globomantics get pods -l app.kubernetes.io/name=tempo-monolithic
+oc -n globomantics get tempomonolithic globomantics-tempo #wait 6

@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globomantics-web
+  labels:
+    app: globomantics-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globomantics-web
+  template:
+    metadata:
+      labels:
+        app: globomantics-web
+    spec:
+      containers:
+        - name: globomantics-web
+          image: ghcr.io/rummens/pluralsight-globomantics-website:otel
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://globomantics-otelcol-collector:4317"
+            - name: OTEL_SERVICE_NAME
+              value: "globomantics-web"
+            - name: CHECKOUT_BACKEND_URL
+              value: "http://globomantics-checkout:8080"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            # High period to keep trace amount low
+            periodSeconds: 120
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            # High period to keep trace amount low
+            periodSeconds: 120
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: globomantics-web
+spec:
+  selector:
+    app: globomantics-web
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globomantics-checkout
+  labels:
+    app: globomantics-checkout
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globomantics-checkout
+  template:
+    metadata:
+      labels:
+        app: globomantics-checkout
+    spec:
+      containers:
+        - name: globomantics-checkout
+          image: ghcr.io/rummens/pluralsight-globomantics-checkout:otel
+          ports:
+            - containerPort: 8080
+          env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://globomantics-otelcol-collector:4317"
+            - name: OTEL_SERVICE_NAME
+              value: "globomantics-checkout"
+            # 300 ms base delay makes the backend span visibly wider in the trace waterfall
+            - name: CHECKOUT_DELAY_MS
+              value: "300"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            # High period to keep trace amount low
+            periodSeconds: 120
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            # High period to keep trace amount low
+            periodSeconds: 120
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: globomantics-checkout
+spec:
+  selector:
+    app: globomantics-checkout
+  ports:
+    - port: 8080
+      targetPort: 8080

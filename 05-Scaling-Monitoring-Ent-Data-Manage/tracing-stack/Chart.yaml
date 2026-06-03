@@ -1,0 +1,14 @@
+apiVersion: v2
+name: tracing-stack
+description: Installs the OpenShift distributed tracing stack — the Tempo Operator and the Red Hat build of OpenTelemetry, plus a monolithic Tempo trace store and an OTLP collector in the globomantics namespace.
+type: application
+version: 0.1.0
+appVersion: "3.6"
+keywords:
+  - tracing
+  - tempo
+  - opentelemetry
+  - observability
+  - openshift
+maintainers:
+  - name: Globomantics

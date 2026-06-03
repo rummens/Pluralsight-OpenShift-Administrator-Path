@@ -1,0 +1,42 @@
+Tracing stack chart installed.
+
+Namespace:    {{ .Values.namespace }}
+Operators:    {{ .Values.operators.tempo.name }} + {{ .Values.operators.opentelemetry.name }} ({{ .Values.operators.namespace }})
+Trace store:  TempoMonolithic/{{ .Values.tempo.name }} (backend {{ .Values.tempo.storage.backend }}{{ if .Values.tempo.multitenancy.enabled }}, multitenant tenant={{ .Values.tempo.multitenancy.tenantName }}{{ end }})
+Collector:    OpenTelemetryCollector/{{ .Values.collector.name }}
+{{- if .Values.tempo.multitenancy.enabled }}
+OTLP target:  {{ include "tracing-stack.tempoGateway" . }}:{{ .Values.collector.gatewayPort }} (via gateway, bearer-token auth)
+{{- else }}
+OTLP target:  {{ include "tracing-stack.tempoService" . }}:4317
+{{- end }}
+
+A post-install hook waits for both operator CRDs, then applies the two custom
+resources. Watch it complete with:
+
+  oc -n {{ .Values.namespace }} logs job/tracing-wait-and-apply -f
+
+Verify the stack:
+  oc -n {{ .Values.operators.namespace }} get csv | egrep 'tempo|opentelemetry'
+  oc -n {{ .Values.namespace }} get tempomonolithic,opentelemetrycollector
+  oc -n {{ .Values.namespace }} get pods -l app.kubernetes.io/name=tempo-monolithic
+  oc -n {{ .Values.namespace }} get pods -l app.kubernetes.io/name={{ .Values.collector.name }}-collector
+
+Point an instrumented app at the collector with:
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://{{ .Values.collector.name }}-collector.{{ .Values.namespace }}.svc:4318
+
+Console "Observe -> Traces" menu:
+{{- if .Values.consoleUIPlugin.enabled }}
+  Enabled via UIPlugin/{{ .Values.consoleUIPlugin.name }} (needs the Cluster
+  Observability Operator pre-installed). Allow a minute for the console pods to
+  reload, then hard-refresh the browser. The instance is discoverable because
+  multitenancy ({{ .Values.tempo.multitenancy.mode }} mode) deploys the gateway the
+  console queries through.
+{{- else }}
+  Disabled (consoleUIPlugin.enabled=false).
+{{- end }}
+
+Then read traces in the console under Observe -> Traces, or open the Jaeger UI
+{{- if .Values.tempo.jaegerui.route.enabled }} via its Route:
+  oc -n {{ .Values.namespace }} get route -l app.kubernetes.io/name=tempo-monolithic
+{{- else }} (set tempo.jaegerui.route.enabled=true to expose a Route).
+{{- end }}
